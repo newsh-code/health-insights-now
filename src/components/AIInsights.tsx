@@ -60,9 +60,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ insights, extractedValue
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
             <ReactMarkdown 
-              className="text-gray-700 leading-relaxed"
               components={{
                 h1: ({children}) => <h1 className="text-xl font-bold text-gray-900 mb-3 mt-4 first:mt-0">{children}</h1>,
                 h2: ({children}) => <h2 className="text-lg font-semibold text-gray-800 mb-2 mt-3 first:mt-0">{children}</h2>,
