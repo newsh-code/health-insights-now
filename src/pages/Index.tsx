@@ -4,8 +4,10 @@ import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
 import { ProcessingFlow } from '@/components/ProcessingFlow';
 import { InsightCards } from '@/components/InsightCards';
+import { AIInsights } from '@/components/AIInsights';
 import { UserInfo, BloodMarker, ProcessingState } from '@/types';
 import { simulateProcessing } from '@/utils/mockData';
+import { useOCRProcessing } from '@/hooks/useOCRProcessing';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 
@@ -18,41 +20,52 @@ const Index = () => {
   });
   const [bloodMarkers, setBloodMarkers] = useState<BloodMarker[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [useRealOCR, setUseRealOCR] = useState(false);
+  
+  const { isProcessing: ocrProcessing, extractedValues, insights, processFileAndGenerateInsights } = useOCRProcessing();
 
   const handleFileUpload = async (file: File) => {
     console.log('File uploaded:', file.name);
     
-    setProcessingState({
-      isProcessing: true,
-      stage: 'uploading',
-      progress: 0
-    });
-
-    try {
-      const results = await simulateProcessing((stage, progress) => {
-        setProcessingState({
-          isProcessing: true,
-          stage,
-          progress
-        });
-      });
-
-      setBloodMarkers(results);
-      setShowResults(true);
+    if (useRealOCR) {
+      // Use real OCR + AI pipeline
+      await processFileAndGenerateInsights(file, userInfo);
+    } else {
+      // Use existing mock data flow
       setProcessingState({
-        isProcessing: false,
-        stage: 'complete',
-        progress: 100
-      });
-    } catch (error) {
-      console.error('Processing failed:', error);
-      setProcessingState({
-        isProcessing: false,
+        isProcessing: true,
         stage: 'uploading',
         progress: 0
       });
+
+      try {
+        const results = await simulateProcessing((stage, progress) => {
+          setProcessingState({
+            isProcessing: true,
+            stage,
+            progress
+          });
+        });
+
+        setBloodMarkers(results);
+        setShowResults(true);
+        setProcessingState({
+          isProcessing: false,
+          stage: 'complete',
+          progress: 100
+        });
+      } catch (error) {
+        console.error('Processing failed:', error);
+        setProcessingState({
+          isProcessing: false,
+          stage: 'uploading',
+          progress: 0
+        });
+      }
     }
   };
+
+  const isCurrentlyProcessing = processingState.isProcessing || ocrProcessing;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -66,10 +79,19 @@ const Index = () => {
               </div>
               <h1 className="text-xl font-bold text-gray-900">BioLens</h1>
             </div>
-            <Button variant="outline" size="sm" className="hidden sm:flex">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Sample Report
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant={useRealOCR ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setUseRealOCR(!useRealOCR)}
+              >
+                {useRealOCR ? "Real OCR ON" : "Demo Mode"}
+              </Button>
+              <Button variant="outline" size="sm" className="hidden sm:flex">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Sample Report
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -90,13 +112,21 @@ const Index = () => {
             Drag & drop your PDF or photo of lab results. No sign-up needed.
             Get AI-powered recommendations tailored to your biomarkers.
           </p>
+          {useRealOCR && (
+            <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mb-6 max-w-2xl mx-auto">
+              <p className="text-blue-800 text-sm">
+                <strong>Real OCR Mode:</strong> Your files will be processed using OCR and sent to AI for analysis.
+                Files are not stored and processed securely.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* File Upload */}
         <div className="mb-8">
           <FileUpload 
             onFileUpload={handleFileUpload} 
-            isProcessing={processingState.isProcessing}
+            isProcessing={isCurrentlyProcessing}
           />
         </div>
 
@@ -107,8 +137,19 @@ const Index = () => {
           </div>
         )}
 
+        {/* OCR Processing Indicator */}
+        {ocrProcessing && (
+          <div className="mb-8">
+            <ProcessingFlow processingState={{
+              isProcessing: true,
+              stage: 'analyzing',
+              progress: 75
+            }} />
+          </div>
+        )}
+
         {/* User Info Card */}
-        {!processingState.isProcessing && !showResults && (
+        {!isCurrentlyProcessing && !showResults && !insights && (
           <div className="mb-8">
             <UserInfoCard 
               userInfo={userInfo} 
@@ -117,7 +158,14 @@ const Index = () => {
           </div>
         )}
 
-        {/* Results */}
+        {/* AI Insights (Real OCR Results) */}
+        {insights && (
+          <div className="mb-8">
+            <AIInsights insights={insights} extractedValues={extractedValues} />
+          </div>
+        )}
+
+        {/* Mock Results */}
         {showResults && (
           <div className="mb-8">
             <div className="text-center mb-8">
