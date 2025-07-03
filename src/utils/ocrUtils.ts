@@ -1,6 +1,6 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
-import { createWorker } from 'tesseract.js';
+import Tesseract from 'tesseract.js';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -30,13 +30,7 @@ export const extractTextFromPDF = async (file: File): Promise<string> => {
 };
 
 export const extractTextFromImage = async (file: File): Promise<string> => {
-  const worker = await createWorker();
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-  
-  const { data: { text } } = await worker.recognize(file);
-  await worker.terminate();
-  
+  const { data: { text } } = await Tesseract.recognize(file, 'eng');
   return text;
 };
 
