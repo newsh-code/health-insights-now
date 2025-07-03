@@ -1,12 +1,151 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { FileUpload } from '@/components/FileUpload';
+import { UserInfoCard } from '@/components/UserInfoCard';
+import { ProcessingFlow } from '@/components/ProcessingFlow';
+import { InsightCards } from '@/components/InsightCards';
+import { UserInfo, BloodMarker, ProcessingState } from '@/types';
+import { simulateProcessing } from '@/utils/mockData';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
 
 const Index = () => {
+  const [userInfo, setUserInfo] = useState<UserInfo>({});
+  const [processingState, setProcessingState] = useState<ProcessingState>({
+    isProcessing: false,
+    stage: 'uploading',
+    progress: 0
+  });
+  const [bloodMarkers, setBloodMarkers] = useState<BloodMarker[]>([]);
+  const [showResults, setShowResults] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    console.log('File uploaded:', file.name);
+    
+    setProcessingState({
+      isProcessing: true,
+      stage: 'uploading',
+      progress: 0
+    });
+
+    try {
+      const results = await simulateProcessing((stage, progress) => {
+        setProcessingState({
+          isProcessing: true,
+          stage,
+          progress
+        });
+      });
+
+      setBloodMarkers(results);
+      setShowResults(true);
+      setProcessingState({
+        isProcessing: false,
+        stage: 'complete',
+        progress: 100
+      });
+    } catch (error) {
+      console.error('Processing failed:', error);
+      setProcessingState({
+        isProcessing: false,
+        stage: 'uploading',
+        progress: 0
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">BL</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">BioLens</h1>
+            </div>
+            <Button variant="outline" size="sm" className="hidden sm:flex">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Sample Report
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Upload Your Blood Test.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-600">
+              Get Personalized Health Insights
+            </span>
+            <br />
+            — Instantly.
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Drag & drop your PDF or photo of lab results. No sign-up needed.
+            Get AI-powered recommendations tailored to your biomarkers.
+          </p>
+        </div>
+
+        {/* File Upload */}
+        <div className="mb-8">
+          <FileUpload 
+            onFileUpload={handleFileUpload} 
+            isProcessing={processingState.isProcessing}
+          />
+        </div>
+
+        {/* Processing Flow */}
+        {processingState.isProcessing && (
+          <div className="mb-8">
+            <ProcessingFlow processingState={processingState} />
+          </div>
+        )}
+
+        {/* User Info Card */}
+        {!processingState.isProcessing && !showResults && (
+          <div className="mb-8">
+            <UserInfoCard 
+              userInfo={userInfo} 
+              onUserInfoChange={setUserInfo}
+            />
+          </div>
+        )}
+
+        {/* Results */}
+        {showResults && (
+          <div className="mb-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
+              <p className="text-gray-600">
+                Based on your lab results{userInfo.age && `, age ${userInfo.age}`}
+                {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
+                {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
+              </p>
+            </div>
+            <InsightCards bloodMarkers={bloodMarkers} />
+          </div>
+        )}
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 border-t border-gray-200">
+          <div className="text-center text-sm text-gray-500 space-y-2">
+            <p>
+              <strong>Medical Disclaimer:</strong> This tool is for educational purposes only and is not a substitute for professional medical advice.
+              Always consult with your healthcare provider before making any changes to your health routine.
+            </p>
+            <p>
+              <strong>Privacy:</strong> Your files are processed securely and not stored on our servers.
+              <a href="#" className="text-blue-600 hover:underline ml-1">Data Policy</a>
+            </p>
+          </div>
+        </footer>
+      </main>
     </div>
   );
 };
