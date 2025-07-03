@@ -25,10 +25,11 @@ const Index = () => {
   const { isProcessing: ocrProcessing, extractedValues, insights, processFileAndGenerateInsights } = useOCRProcessing();
 
   const handleFileUpload = async (file: File) => {
-    console.log('File uploaded:', file.name);
+    console.log('File uploaded:', file.name, 'Real OCR mode:', useRealOCR);
     
     if (useRealOCR) {
-      // Use real OCR + AI pipeline
+      // Use real OCR + AI pipeline with user info
+      console.log('Processing with user info:', userInfo);
       await processFileAndGenerateInsights(file, userInfo);
     } else {
       // Use existing mock data flow
@@ -148,7 +149,7 @@ const Index = () => {
           </div>
         )}
 
-        {/* User Info Card */}
+        {/* User Info Card - Show when not processing and no results yet */}
         {!isCurrentlyProcessing && !showResults && !insights && (
           <div className="mb-8">
             <UserInfoCard 
@@ -166,7 +167,7 @@ const Index = () => {
         )}
 
         {/* Mock Results */}
-        {showResults && (
+        {showResults && !insights && (
           <div className="mb-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>

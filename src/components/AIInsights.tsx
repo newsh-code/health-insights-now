@@ -1,7 +1,8 @@
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Brain, AlertTriangle } from 'lucide-react';
+import { Brain, AlertTriangle, Activity } from 'lucide-react';
 
 interface AIInsightsProps {
   insights: string;
@@ -23,7 +24,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ insights, extractedValue
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Brain className="w-5 h-5 text-blue-600" />
+              <Activity className="w-5 h-5 text-blue-600" />
               Extracted Lab Values ({extractedValues.length})
             </CardTitle>
           </CardHeader>
@@ -60,16 +61,29 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ insights, extractedValue
         </CardHeader>
         <CardContent>
           <div className="prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+            <ReactMarkdown 
+              className="text-gray-700 leading-relaxed"
+              components={{
+                h1: ({children}) => <h1 className="text-xl font-bold text-gray-900 mb-3 mt-4 first:mt-0">{children}</h1>,
+                h2: ({children}) => <h2 className="text-lg font-semibold text-gray-800 mb-2 mt-3 first:mt-0">{children}</h2>,
+                h3: ({children}) => <h3 className="text-base font-medium text-gray-800 mb-2 mt-3 first:mt-0">{children}</h3>,
+                p: ({children}) => <p className="mb-3 text-gray-700">{children}</p>,
+                ul: ({children}) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+                ol: ({children}) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+                li: ({children}) => <li className="text-gray-700">{children}</li>,
+                strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                em: ({children}) => <em className="italic text-gray-700">{children}</em>,
+              }}
+            >
               {insights}
-            </div>
+            </ReactMarkdown>
           </div>
           
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-800">
-              <strong>Privacy Note:</strong> Your file was processed locally and is not stored on our servers. 
-              This analysis is for educational purposes only.
+              <strong>Medical Disclaimer:</strong> This analysis is for educational purposes only and is not a substitute for professional medical advice. 
+              Always consult with your healthcare provider before making any changes to your health routine.
             </p>
           </div>
         </CardContent>

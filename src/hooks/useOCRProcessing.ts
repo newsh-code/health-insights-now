@@ -32,7 +32,11 @@ export const useOCRProcessing = () => {
       setExtractedValues(labValues);
       
       // Step 2: Generate insights using Supabase Edge Function
-      console.log('Generating insights...');
+      console.log('Generating insights with payload:', {
+        user_info: userInfo,
+        lab_values: labValues
+      });
+      
       const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: {
           user_info: userInfo,
@@ -45,6 +49,8 @@ export const useOCRProcessing = () => {
         throw new Error(error.message || 'Failed to generate insights');
       }
 
+      console.log('Received insights response:', data);
+
       if (data?.insights) {
         setInsights(data.insights);
         toast({
@@ -52,7 +58,7 @@ export const useOCRProcessing = () => {
           description: `Found ${labValues.length} lab markers and generated personalized insights.`,
         });
       } else {
-        throw new Error('No insights received');
+        throw new Error('No insights received from AI');
       }
 
     } catch (error) {
