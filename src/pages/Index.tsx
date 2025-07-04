@@ -158,16 +158,27 @@ const Index = () => {
           </div>
         )}
 
-        {/* AI Insights (Real OCR Results) */}
-        {(insights || parsedInsights) && (
-          <div className="mb-8">
-            <AIInsights 
-              insights={insights} 
-              parsedInsights={parsedInsights}
-              extractedValues={extractedValues} 
-            />
-          </div>
-        )}
+        {/* Real OCR Results */}
+{showResults && insights && (
+  <div className="mb-8 space-y-8">
+    <div className="text-center">
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
+      <p className="text-gray-600">
+        Based on your lab results
+        {userInfo.age && `, age ${userInfo.age}`}
+        {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
+        {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
+      </p>
+    </div>
+
+    <InsightCards bloodMarkers={bloodMarkers} />
+    <AIInsights 
+      insights={insights} 
+      parsedInsights={parsedInsights}
+      extractedValues={extractedValues} 
+    />
+  </div>
+)}
 
         {/* Mock Results */}
         {showResults && !insights && (
