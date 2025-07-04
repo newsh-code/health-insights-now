@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
@@ -22,7 +21,7 @@ const Index = () => {
   const [showResults, setShowResults] = useState(false);
   const [useRealOCR, setUseRealOCR] = useState(false);
   
-  const { isProcessing: ocrProcessing, extractedValues, insights, processFileAndGenerateInsights } = useOCRProcessing();
+  const { isProcessing: ocrProcessing, extractedValues, insights, parsedInsights, processFileAndGenerateInsights } = useOCRProcessing();
 
   const handleFileUpload = async (file: File) => {
     console.log('File uploaded:', file.name, 'Real OCR mode:', useRealOCR);
@@ -160,9 +159,13 @@ const Index = () => {
         )}
 
         {/* AI Insights (Real OCR Results) */}
-        {insights && (
+        {(insights || parsedInsights) && (
           <div className="mb-8">
-            <AIInsights insights={insights} extractedValues={extractedValues} />
+            <AIInsights 
+              insights={insights} 
+              parsedInsights={parsedInsights}
+              extractedValues={extractedValues} 
+            />
           </div>
         )}
 
