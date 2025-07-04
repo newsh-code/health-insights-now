@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { BadgeCheck, AlertCircle, HeartPulse } from 'lucide-react';
@@ -21,9 +22,24 @@ interface Props {
 }
 
 export const AIInsights: React.FC<Props> = ({ insights, parsedInsights }) => {
-  // Use parsed if available, otherwise try to use structured insights
-  const data = parsedInsights || (typeof insights === 'object' ? insights : null);
-  const fallbackText = typeof insights === 'string' ? insights : null;
+  // Parse insights if it's a string
+  let parsedData: StructuredInsights | null = null;
+  
+  if (typeof insights === 'string') {
+    try {
+      parsedData = JSON.parse(insights);
+    } catch (error) {
+      console.error('Failed to parse insights string:', error);
+    }
+  } else if (typeof insights === 'object' && insights !== null) {
+    parsedData = insights;
+  }
+
+  // Use parsedInsights if available, otherwise use parsed data
+  const data = parsedInsights || parsedData;
+  const fallbackText = typeof insights === 'string' && !parsedData ? insights : null;
+
+  console.log('AIInsights received:', { insights, parsedInsights, parsedData, data });
 
   const renderList = (items: string[]) => (
     <ul className="list-disc list-inside space-y-1">

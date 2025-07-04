@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
@@ -163,10 +164,19 @@ const Index = () => {
           </div>
         )}
 
-        {/* Real OCR Results - Only render when real OCR mode is on and valid insights are returned */}
-        {useRealOCR && showResults && (insights || parsedInsights) && (
-          <div className="mb-8 space-y-8">
-            <div className="text-center">
+        {/* Debug Output */}
+        {showResults && (
+          <div className="mb-8">
+            <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto">
+              {JSON.stringify({ insights, parsedInsights }, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {/* Real OCR Results - Only render when insights are fully parsed and valid */}
+        {showResults && insights && typeof insights === 'object' && (
+          <div className="mb-8">
+            <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
               <p className="text-gray-600">
                 Based on your lab results
@@ -177,11 +187,7 @@ const Index = () => {
             </div>
 
             <InsightCards bloodMarkers={bloodMarkers} />
-            <AIInsights 
-              insights={insights} 
-              parsedInsights={parsedInsights}
-              extractedValues={extractedValues} 
-            />
+            <AIInsights insights={insights} />
           </div>
         )}
 
