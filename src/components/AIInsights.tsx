@@ -1,75 +1,110 @@
-
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle } from 'lucide-react';
-import { LabMarkersCard } from './LabMarkersCard';
-import { AIInsightsCard } from './AIInsightsCard';
-import { StructuredInsights } from './StructuredInsights';
+import { Card, CardContent } from '@/components/ui/card';
+import { BadgeCheck, AlertCircle, HeartPulse, Dumbbell, BedDouble, Leaf } from 'lucide-react';
 
-interface AIInsightsProps {
-  insights: string;
-  parsedInsights?: {
-    interpretation: string;
-    lifestyle_recommendations: {
-      diet: string[];
-      exercise: string[];
-      sleep: string[];
-      stress: string[];
-    };
-    urgent_flags: string[];
-    disclaimer: string;
-  } | null;
-  extractedValues: Array<{
-    name: string;
-    value: number;
-    units?: string;
-    reference_range?: string;
-  }>;
+interface Insights {
+  interpretation: string;
+  lifestyle_recommendations: {
+    diet: string[];
+    exercise: string[];
+    sleep: string[];
+    stress: string[];
+  };
+  urgent_flags: string[];
+  disclaimer: string;
 }
 
-export const AIInsights: React.FC<AIInsightsProps> = ({ insights, parsedInsights, extractedValues }) => {
-  if (!insights && !parsedInsights && extractedValues.length === 0) return null;
+interface Props {
+  insights: Insights;
+}
+
+export const AIInsights: React.FC<Props> = ({ insights }) => {
+  const { interpretation, lifestyle_recommendations, urgent_flags, disclaimer } = insights;
+
+  const renderList = (items: string[], icon?: React.ReactNode) => (
+    <ul className="list-disc list-inside space-y-1">
+      {items.map((item, index) => (
+        <li key={index} className="text-sm text-gray-700">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Title Section */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
-        <p className="text-gray-600">Based on your lab results</p>
-      </div>
+    <section className="space-y-6">
+      <Card>
+        <CardContent className="space-y-2 pt-6">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <HeartPulse className="w-5 h-5 text-green-600" />
+            Lab Results Interpretation
+          </h2>
+          <p className="text-gray-700 text-sm whitespace-pre-wrap">{interpretation}</p>
+        </CardContent>
+      </Card>
 
-      {/* Lab Markers */}
-      {extractedValues.length > 0 && (
-        <LabMarkersCard extractedValues={extractedValues} />
-      )}
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <BadgeCheck className="w-5 h-5 text-green-600" />
+            Personalized Lifestyle Recommendations
+          </h2>
 
-      {/* Structured AI Insights (New JSON Format) */}
-      {parsedInsights && (
-        <StructuredInsights insights={parsedInsights} />
-      )}
-
-      {/* Fallback AI Generated Insights (Old String Format) */}
-      {!parsedInsights && insights && (
-        <AIInsightsCard insights={insights} />
-      )}
-
-      {/* Default Medical Disclaimer if not provided in structured format */}
-      {!parsedInsights && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-800">
-                <p className="font-semibold mb-1">Medical Disclaimer:</p>
-                <p>
-                  This analysis is for educational purposes only and is not a substitute for professional medical advice. 
-                  Always consult with your healthcare provider before making any changes to your health routine.
-                </p>
-              </div>
+          {lifestyle_recommendations?.diet?.length > 0 && (
+            <div>
+              <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                🍽️ Diet
+              </h3>
+              {renderList(lifestyle_recommendations.diet)}
             </div>
+          )}
+
+          {lifestyle_recommendations?.exercise?.length > 0 && (
+            <div>
+              <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                🏋️ Exercise
+              </h3>
+              {renderList(lifestyle_recommendations.exercise)}
+            </div>
+          )}
+
+          {lifestyle_recommendations?.sleep?.length > 0 && (
+            <div>
+              <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                😴 Sleep
+              </h3>
+              {renderList(lifestyle_recommendations.sleep)}
+            </div>
+          )}
+
+          {lifestyle_recommendations?.stress?.length > 0 && (
+            <div>
+              <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                🧘 Stress Management
+              </h3>
+              {renderList(lifestyle_recommendations.stress)}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {urgent_flags?.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <h2 className="text-xl font-semibold text-red-600 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Urgent Flags
+            </h2>
+            {renderList(urgent_flags)}
           </CardContent>
         </Card>
       )}
-    </div>
+
+      {disclaimer && (
+        <div className="bg-orange-50 border-l-4 border-orange-500 text-orange-800 text-sm p-4 rounded-md shadow-sm">
+          {disclaimer}
+        </div>
+      )}
+    </section>
   );
 };
