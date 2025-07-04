@@ -1,11 +1,11 @@
+
 import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
 import { ProcessingFlow } from '@/components/ProcessingFlow';
-import { InsightCards } from '@/components/InsightCards';
+import { LabMarkersCard } from '@/components/LabMarkersCard';
 import { AIInsights } from '@/components/AIInsights';
-import { UserInfo, BloodMarker, ProcessingState } from '@/types';
-import { simulateProcessing } from '@/utils/mockData';
+import { UserInfo, ProcessingState } from '@/types';
 import { useOCRProcessing } from '@/hooks/useOCRProcessing';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
@@ -17,11 +17,10 @@ const Index = () => {
     stage: 'uploading',
     progress: 0
   });
-  const [bloodMarkers, setBloodMarkers] = useState<BloodMarker[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [useRealOCR, setUseRealOCR] = useState(false);
   
-  const { isProcessing: ocrProcessing, extractedValues, insights, parsedInsights, processFileAndGenerateInsights } = useOCRProcessing();
+  const { isProcessing: ocrProcessing, extractedValues, parsedInsights, processFileAndGenerateInsights } = useOCRProcessing();
 
   const handleFileUpload = async (file: File) => {
     console.log('File uploaded:', file.name, 'Real OCR mode:', useRealOCR);
@@ -31,41 +30,11 @@ const Index = () => {
       console.log('Processing with user info:', userInfo);
       await processFileAndGenerateInsights(file, userInfo);
       
-      // Set showResults to true after processing completes (whether successful or not)
-      // The actual success check happens in the rendering conditions below
+      // Set showResults to true after processing completes
       setShowResults(true);
     } else {
-      // Use existing mock data flow
-      setProcessingState({
-        isProcessing: true,
-        stage: 'uploading',
-        progress: 0
-      });
-
-      try {
-        const results = await simulateProcessing((stage, progress) => {
-          setProcessingState({
-            isProcessing: true,
-            stage,
-            progress
-          });
-        });
-
-        setBloodMarkers(results);
-        setShowResults(true);
-        setProcessingState({
-          isProcessing: false,
-          stage: 'complete',
-          progress: 100
-        });
-      } catch (error) {
-        console.error('Processing failed:', error);
-        setProcessingState({
-          isProcessing: false,
-          stage: 'uploading',
-          progress: 0
-        });
-      }
+      // Demo mode - show message that real processing is needed
+      console.log('Demo mode - real processing disabled');
     }
   };
 
@@ -162,17 +131,8 @@ const Index = () => {
           </div>
         )}
 
-        {/* Debug Output */}
-        {showResults && (
-          <div className="mb-8">
-            <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto">
-              {JSON.stringify({ insights, parsedInsights }, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        {/* Real OCR Results - Only render when parsedInsights are fully parsed and valid */}
-        {showResults && parsedInsights && typeof parsedInsights === 'object' && (
+        {/* Results Section */}
+        {showResults && useRealOCR && (
           <div className="mb-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
@@ -184,23 +144,31 @@ const Index = () => {
               </p>
             </div>
 
-            <InsightCards bloodMarkers={bloodMarkers} />
-            <AIInsights insights={parsedInsights} />
+            {/* Lab Markers Section */}
+            {extractedValues && extractedValues.length > 0 && (
+              <div className="mb-6">
+                <LabMarkersCard extractedValues={extractedValues} />
+              </div>
+            )}
+
+            {/* AI Insights Section */}
+            {parsedInsights && typeof parsedInsights === 'object' && (
+              <div className="mb-8">
+                <AIInsights insights={parsedInsights} />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Mock Results - Only render when not in real OCR mode */}
+        {/* Demo Mode Message */}
         {!useRealOCR && showResults && (
           <div className="mb-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
-              <p className="text-gray-600">
-                Based on your lab results{userInfo.age && `, age ${userInfo.age}`}
-                {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
-                {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 text-center">
+              <h3 className="text-lg font-semibold text-amber-800 mb-2">Demo Mode Active</h3>
+              <p className="text-amber-700">
+                Please enable "Real OCR Mode" to process your lab results and get personalized insights.
               </p>
             </div>
-            <InsightCards bloodMarkers={bloodMarkers} />
           </div>
         )}
 
