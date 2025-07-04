@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
@@ -30,6 +31,10 @@ const Index = () => {
       // Use real OCR + AI pipeline with user info
       console.log('Processing with user info:', userInfo);
       await processFileAndGenerateInsights(file, userInfo);
+      
+      // Set showResults to true after processing completes (whether successful or not)
+      // The actual success check happens in the rendering conditions below
+      setShowResults(true);
     } else {
       // Use existing mock data flow
       setProcessingState({
@@ -149,7 +154,7 @@ const Index = () => {
         )}
 
         {/* User Info Card - Show when not processing and no results yet */}
-        {!isCurrentlyProcessing && !showResults && !insights && (
+        {!isCurrentlyProcessing && !showResults && (
           <div className="mb-8">
             <UserInfoCard 
               userInfo={userInfo} 
@@ -158,30 +163,30 @@ const Index = () => {
           </div>
         )}
 
-        {/* Real OCR Results */}
-{showResults && insights && (
-  <div className="mb-8 space-y-8">
-    <div className="text-center">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
-      <p className="text-gray-600">
-        Based on your lab results
-        {userInfo.age && `, age ${userInfo.age}`}
-        {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
-        {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
-      </p>
-    </div>
+        {/* Real OCR Results - Only render when real OCR mode is on and valid insights are returned */}
+        {useRealOCR && showResults && (insights || parsedInsights) && (
+          <div className="mb-8 space-y-8">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
+              <p className="text-gray-600">
+                Based on your lab results
+                {userInfo.age && `, age ${userInfo.age}`}
+                {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
+                {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
+              </p>
+            </div>
 
-    <InsightCards bloodMarkers={bloodMarkers} />
-    <AIInsights 
-      insights={insights} 
-      parsedInsights={parsedInsights}
-      extractedValues={extractedValues} 
-    />
-  </div>
-)}
+            <InsightCards bloodMarkers={bloodMarkers} />
+            <AIInsights 
+              insights={insights} 
+              parsedInsights={parsedInsights}
+              extractedValues={extractedValues} 
+            />
+          </div>
+        )}
 
-        {/* Mock Results */}
-        {showResults && !insights && (
+        {/* Mock Results - Only render when not in real OCR mode */}
+        {!useRealOCR && showResults && (
           <div className="mb-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
