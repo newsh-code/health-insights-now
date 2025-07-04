@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
@@ -173,8 +171,8 @@ const Index = () => {
           </div>
         )}
 
-        {/* Real OCR Results - Only render when insights are fully parsed and valid */}
-        {showResults && insights && typeof insights === 'object' && (
+        {/* Real OCR Results - Only render when parsedInsights are fully parsed and valid */}
+        {showResults && parsedInsights && typeof parsedInsights === 'object' && (
           <div className="mb-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
@@ -187,7 +185,7 @@ const Index = () => {
             </div>
 
             <InsightCards bloodMarkers={bloodMarkers} />
-            <AIInsights insights={insights} />
+            <AIInsights insights={parsedInsights} />
           </div>
         )}
 
