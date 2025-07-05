@@ -23,7 +23,7 @@ serve(async (req) => {
 
   try {
     const { ocrText } = await req.json();
-    console.log('Received OCR text for parsing');
+    console.log('🧾 Received OCR text for parsing');
 
     if (!ocrText || typeof ocrText !== 'string' || ocrText.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'No OCR text provided' }), {
@@ -51,7 +51,7 @@ You are a medical data extractor. Given the OCR text from a lab report, extract 
 OCR Text:
 """${ocrText}"""
 
-Return:
+Return ONLY this format:
 [
   {
     "name": "Hemoglobin",
@@ -59,12 +59,11 @@ Return:
     "unit": "g/L",
     "reference_range": "130–170",
     "status": "normal"
-  },
-  ...
+  }
 ]
 `;
 
-    console.log('Sending request to OpenAI for lab marker parsing');
+    console.log('📤 Sending request to OpenAI');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -76,12 +75,12 @@ Return:
         messages: [
           {
             role: 'system',
-            content: 'You extract clean medical data. You return only raw JSON arrays with no markdown, no commentary, no prose.'
+            content: 'You extract clean medical lab marker data. Return ONLY valid JSON arrays. No explanations, no markdown, no commentary.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.1,
         max_tokens: 1500,
@@ -89,30 +88,29 @@ Return:
     });
 
     if (!response.ok) {
-      console.error('OpenAI API error:', response.status, response.statusText);
+      console.error('❌ OpenAI API error:', response.status, response.statusText);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let aiContent = data.choices[0].message.content;
-    console.log('AI response received:', aiContent.slice(0, 300));
+    let aiContent = data.choices?.[0]?.message?.content || '';
+    console.log('📩 AI response received:', aiContent.slice(0, 500));
 
-    // Clean markdown if necessary
+    // Strip potential markdown
     aiContent = aiContent.trim();
     if (aiContent.startsWith("```")) {
       aiContent = aiContent.replace(/```json|```/g, '').trim();
     }
 
-    // Attempt to parse
     let labMarkers: LabMarker[] = [];
     try {
       labMarkers = JSON.parse(aiContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', parseError);
+      console.error('❌ Failed to parse AI response as JSON:', parseError);
+      console.error('Raw AI Content:', aiContent);
       throw new Error('Invalid JSON response from AI parser');
     }
 
-    // Validate
     const validMarkers = labMarkers.filter(marker =>
       marker.name &&
       typeof marker.name === 'string' &&
@@ -125,8 +123,9 @@ Return:
     return new Response(JSON.stringify({ labMarkers: validMarkers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
   } catch (error) {
-    console.error('Error in parse-lab-markers function:', error);
+    console.error('🚨 Error in parse-lab-markers function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
