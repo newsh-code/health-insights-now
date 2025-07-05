@@ -33,12 +33,7 @@ export const useOCRProcessing = () => {
       }
       
       // Must have a reference range to be considered a true lab marker
-      if (!marker.reference_range || typeof marker.reference_range !== 'string') {
-        return false;
-      }
-      
-      // Reference range should contain a dash or hyphen indicating min-max
-      if (!marker.reference_range.match(/[-–]/)) {
+      if (!marker.reference_range || typeof marker.reference_range !== 'string' || marker.reference_range.trim() === '') {
         return false;
       }
       
@@ -81,6 +76,15 @@ export const useOCRProcessing = () => {
       // Filter out non-marker data
       const filteredLabValues = filterLabMarkers(labValues);
       console.log('Filtered lab values:', filteredLabValues);
+      
+      if (filteredLabValues.length === 0) {
+        toast({
+          title: "No valid lab markers found",
+          description: "No valid lab markers were extracted. Please try a different image.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       setExtractedValues(filteredLabValues);
       

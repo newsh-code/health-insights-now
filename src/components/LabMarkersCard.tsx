@@ -17,12 +17,11 @@ interface LabMarkersCardProps {
 }
 
 const generateStatus = (name: string, value: number, referenceRange?: string): string => {
-  // Simple logic for common markers - can be enhanced with more sophisticated AI logic
   const lowerName = name.toLowerCase();
   
   if (referenceRange) {
-    // Try to parse reference range like "3.5-5.2" or "3.5 - 5.2"
-    const rangeMatch = referenceRange.match(/(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)/);
+    // Try to parse reference range like "3.5-5.2" or "3.5 - 5.2" or "130–170"
+    const rangeMatch = referenceRange.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
     if (rangeMatch) {
       const [, minStr, maxStr] = rangeMatch;
       const min = parseFloat(minStr);
@@ -32,9 +31,23 @@ const generateStatus = (name: string, value: number, referenceRange?: string): s
       if (value > max) return 'High';
       return 'Normal';
     }
+    
+    // Handle "Up to X" or "< X" format
+    const upperMatch = referenceRange.match(/(?:up to|<)\s*(\d+(?:\.\d+)?)/i);
+    if (upperMatch) {
+      const upperLimit = parseFloat(upperMatch[1]);
+      return value > upperLimit ? 'High' : 'Normal';
+    }
+    
+    // Handle "> X" format
+    const lowerMatch = referenceRange.match(/>\s*(\d+(?:\.\d+)?)/);
+    if (lowerMatch) {
+      const lowerLimit = parseFloat(lowerMatch[1]);
+      return value < lowerLimit ? 'Low' : 'Normal';
+    }
   }
   
-  // Fallback logic for common markers
+  // Fallback logic for common markers when reference range can't be parsed
   if (lowerName.includes('cholesterol') && lowerName.includes('total')) {
     return value > 200 ? 'High' : value < 100 ? 'Low' : 'Normal';
   }
