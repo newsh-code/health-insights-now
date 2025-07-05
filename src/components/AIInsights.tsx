@@ -34,13 +34,15 @@ export const AIInsights: React.FC<Props> = ({ insights }) => {
     <section className="space-y-6">
       {/* Lab Results Interpretation */}
       {insights.interpretation && (
-        <Card>
+        <Card className="mb-6">
           <CardContent className="space-y-2 pt-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <HeartPulse className="w-5 h-5 text-green-600" />
-              Lab Results Interpretation
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <HeartPulse className="w-6 h-6 text-green-600" />
+              All Insights
             </h2>
-            <p className="text-gray-700 text-sm whitespace-pre-wrap">{insights.interpretation}</p>
+            <div className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
+              {insights.interpretation}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -49,9 +51,9 @@ export const AIInsights: React.FC<Props> = ({ insights }) => {
       {insights.lifestyle_recommendations && (
         <Card>
           <CardContent className="space-y-4 pt-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <BadgeCheck className="w-5 h-5 text-green-600" />
-              Personalized Lifestyle Recommendations
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+              <BadgeCheck className="w-6 h-6 text-green-600" />
+              Lifestyle Recommendations
             </h2>
 
             {insights.lifestyle_recommendations.diet?.length > 0 && (

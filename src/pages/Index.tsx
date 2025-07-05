@@ -5,6 +5,7 @@ import { UserInfoCard } from '@/components/UserInfoCard';
 import { ProcessingFlow } from '@/components/ProcessingFlow';
 import { LabMarkersCard } from '@/components/LabMarkersCard';
 import { AIInsights } from '@/components/AIInsights';
+import { EmailResults } from '@/components/EmailResults';
 import { UserInfo, ProcessingState } from '@/types';
 import { useOCRProcessing } from '@/hooks/useOCRProcessing';
 import { Button } from '@/components/ui/button';
@@ -155,6 +156,13 @@ const Index = () => {
             {parsedInsights && typeof parsedInsights === 'object' && (
               <div className="mb-8">
                 <AIInsights insights={parsedInsights} />
+              </div>
+            )}
+
+            {/* Email Results Section */}
+            {(extractedValues?.length > 0 || parsedInsights) && (
+              <div className="mb-8">
+                <EmailResults extractedValues={extractedValues || []} parsedInsights={parsedInsights} />
               </div>
             )}
           </div>

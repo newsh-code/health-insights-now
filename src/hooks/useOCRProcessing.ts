@@ -27,24 +27,33 @@ export const useOCRProcessing = () => {
       const name = marker.name.toLowerCase();
       const value = String(marker.value);
       
-      // Exclude entries with date-related keywords
-      if (name.includes('date') || name.includes('reference') || 
-          name.includes('received') || name.includes('collected')) {
+      // Must have a numeric value
+      if (isNaN(Number(marker.value))) {
         return false;
       }
       
-      // Exclude entries that look like raw date strings
-      if (/^\d{4}\s+\d{1,2}$/.test(value) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
+      // Must have a reference range to be considered a true lab marker
+      if (!marker.reference_range || typeof marker.reference_range !== 'string') {
         return false;
       }
       
-      // Exclude metadata entries without units
-      if (!marker.units && (name.includes('report') || name.includes('age') || 
-          name.includes('patient') || name.includes('id'))) {
+      // Reference range should contain a dash or hyphen indicating min-max
+      if (!marker.reference_range.match(/[-–]/)) {
         return false;
       }
       
-      // Keep entries that have numeric values with units (true physiological markers)
+      // Exclude metadata entries
+      if (name.includes('age') || name.includes('date') || name.includes('time') ||
+          name.includes('patient') || name.includes('id') || name.includes('report') ||
+          name.includes('received') || name.includes('collected') || name.includes('specimen')) {
+        return false;
+      }
+      
+      // Exclude entries that look like dates
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value) || /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(value)) {
+        return false;
+      }
+      
       return true;
     });
   };

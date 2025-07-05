@@ -54,27 +54,53 @@ const generateStatus = (name: string, value: number, referenceRange?: string): s
 const generateInterpretation = (name: string, value: number, status: string, units?: string): string => {
   const lowerName = name.toLowerCase();
   
+  // Specific interpretations for common markers
+  if (lowerName.includes('cholesterol') && lowerName.includes('total')) {
+    if (status === 'High') return 'Total cholesterol measures all cholesterol in your blood. High levels increase your risk of heart disease and stroke.';
+    if (status === 'Low') return 'Total cholesterol is below normal range. While low cholesterol is generally good, extremely low levels may indicate other health issues.';
+    return 'Total cholesterol measures all cholesterol in your blood. This level supports good cardiovascular health.';
+  }
+  
+  if (lowerName.includes('ldl')) {
+    if (status === 'High') return 'LDL is often called "bad" cholesterol because it can build up in artery walls, increasing heart disease risk.';
+    if (status === 'Low') return 'LDL cholesterol is well-controlled. Low LDL levels reduce your risk of heart disease and stroke.';
+    return 'LDL cholesterol is within target range, supporting good cardiovascular health.';
+  }
+  
+  if (lowerName.includes('hdl')) {
+    if (status === 'High') return 'HDL is "good" cholesterol that helps remove harmful cholesterol from your bloodstream. Higher levels are protective.';
+    if (status === 'Low') return 'HDL helps remove bad cholesterol from your bloodstream. Regular exercise and healthy fats can help increase HDL levels.';
+    return 'HDL cholesterol levels support cardiovascular protection by removing excess cholesterol from your arteries.';
+  }
+  
+  if (lowerName.includes('glucose') || lowerName.includes('sugar')) {
+    if (status === 'High') return 'Blood glucose measures sugar levels in your blood. Elevated levels may indicate prediabetes or diabetes risk.';
+    if (status === 'Low') return 'Blood glucose is below normal range, which may cause symptoms like dizziness or fatigue if severe.';
+    return 'Blood glucose levels are well-controlled, indicating good metabolic function.';
+  }
+  
+  if (lowerName.includes('hemoglobin') || lowerName.includes('hgb')) {
+    if (status === 'High') return 'Hemoglobin carries oxygen in your blood. High levels may indicate dehydration or underlying blood disorders.';
+    if (status === 'Low') return 'Hemoglobin carries oxygen throughout your body. Low levels may indicate anemia or iron deficiency.';
+    return 'Hemoglobin levels support optimal oxygen transport throughout your body.';
+  }
+  
+  if (lowerName.includes('creatinine')) {
+    if (status === 'High') return 'Creatinine measures kidney function. Elevated levels may indicate reduced kidney filtering capacity.';
+    if (status === 'Low') return 'Creatinine is a waste product filtered by your kidneys. Low levels are typically not concerning.';
+    return 'Creatinine levels indicate healthy kidney function and waste filtration.';
+  }
+  
+  // Generic fallbacks for other markers
   if (status === 'High') {
-    if (lowerName.includes('cholesterol')) {
-      return 'Elevated cholesterol levels may increase cardiovascular risk. Consider dietary changes and exercise.';
-    }
-    if (lowerName.includes('glucose')) {
-      return 'High glucose levels may indicate prediabetes or diabetes. Consult your healthcare provider.';
-    }
-    return `${name} levels are above normal range. This may require attention from your healthcare provider.`;
+    return `${name} levels are elevated, which may require attention from your healthcare provider for proper evaluation.`;
   }
   
   if (status === 'Low') {
-    if (lowerName.includes('hdl')) {
-      return 'Low HDL cholesterol reduces protection against heart disease. Regular exercise can help increase HDL.';
-    }
-    if (lowerName.includes('vitamin')) {
-      return `Low ${name} levels may affect various body functions. Consider discussing supplementation with your doctor.`;
-    }
-    return `${name} levels are below normal range. This may indicate a deficiency or other health concern.`;
+    return `${name} levels are below normal range, which may indicate a deficiency or other health consideration.`;
   }
   
-  return `${name} levels are within normal range, which is good for your overall health.`;
+  return `${name} levels are within normal range, supporting overall health.`;
 };
 
 const getStatusColor = (status: string) => {
@@ -115,9 +141,9 @@ export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues 
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <CardHeader className="pb-3 cursor-pointer hover:bg-blue-50/50 transition-colors">
-            <CardTitle className="text-lg flex items-center justify-between">
+            <CardTitle className="text-2xl font-bold flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-600" />
+                <Activity className="w-6 h-6 text-blue-600" />
                 🧪 Lab Markers ({extractedValues.length})
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -151,14 +177,13 @@ export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues 
                     </div>
                     {marker.reference_range && (
                       <div className="text-sm">
-                        <span className="text-gray-600">Reference Range: </span>
+                        <span className="text-gray-600">Reference: </span>
                         <span className="font-medium text-gray-700">{marker.reference_range}</span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="text-sm text-gray-700 bg-white/60 p-3 rounded border border-gray-200">
-                    <span className="font-medium">Interpretation: </span>
+                  <div className="text-sm text-gray-700 mt-2">
                     {interpretation}
                   </div>
                 </div>
