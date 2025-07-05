@@ -17,14 +17,12 @@ interface LabMarker {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { ocrText } = await req.json();
-
     console.log('Received OCR text for parsing');
 
     if (!ocrText || typeof ocrText !== 'string' || ocrText.trim().length === 0) {
@@ -34,32 +32,39 @@ serve(async (req) => {
       });
     }
 
-    const prompt = `Extract structured lab marker data from this medical lab report text. Only include rows that represent actual lab test results with numeric values.
+    const prompt = `
+You are a medical data extractor. Given the OCR text from a lab report, extract only valid lab markers into a **pure JSON array**.
 
-Rules:
-- Include only genuine lab markers (blood tests, chemistry panels, etc.)
-- Skip metadata like patient age, date, lab ID, specimen info
-- Each marker must have a name and numeric value
-- Include units and reference ranges when available
-- Determine status (low/normal/high) based on value vs reference range
-- Output valid JSON array only
+✅ Rules:
+- Include only genuine lab test results with numeric values
+- Skip personal info like name, age, gender, date
+- Each marker must include:
+  • "name" (string)
+  • "value" (number)
+  • "unit" (string, optional)
+  • "reference_range" (string, optional, like "80-120")
+  • "status" (low, normal, or high based on value vs. range)
+
+❌ Do NOT include markdown (no triple backticks)
+❌ Do NOT include explanations or extra text
 
 OCR Text:
-${ocrText}
+"""${ocrText}"""
 
-Return JSON array with this structure:
+Return:
 [
   {
-    "name": "Test Name",
-    "value": 123.4,
-    "unit": "mg/dL",
-    "reference_range": "80-120",
+    "name": "Hemoglobin",
+    "value": 132,
+    "unit": "g/L",
+    "reference_range": "130–170",
     "status": "normal"
-  }
-]`;
+  },
+  ...
+]
+`;
 
     console.log('Sending request to OpenAI for lab marker parsing');
-
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -69,11 +74,14 @@ Return JSON array with this structure:
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a medical data extraction specialist. Extract only valid lab markers from medical reports. Return valid JSON arrays only.' 
+          {
+            role: 'system',
+            content: 'You extract clean medical data. You return only raw JSON arrays with no markdown, no commentary, no prose.'
           },
-          { role: 'user', content: prompt }
+          {
+            role: 'user',
+            content: prompt
+          }
         ],
         temperature: 0.1,
         max_tokens: 1500,
@@ -86,35 +94,33 @@ Return JSON array with this structure:
     }
 
     const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    let aiContent = data.choices[0].message.content;
+    console.log('AI response received:', aiContent.slice(0, 300));
 
-    console.log('AI parsing response received');
+    // Clean markdown if necessary
+    aiContent = aiContent.trim();
+    if (aiContent.startsWith("```")) {
+      aiContent = aiContent.replace(/```json|```/g, '').trim();
+    }
 
-    // Parse the JSON response
+    // Attempt to parse
     let labMarkers: LabMarker[] = [];
     try {
-      // Extract JSON from the response (in case there's extra text)
-      const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        labMarkers = JSON.parse(jsonMatch[0]);
-      } else {
-        labMarkers = JSON.parse(aiResponse);
-      }
+      labMarkers = JSON.parse(aiContent);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
       throw new Error('Invalid JSON response from AI parser');
     }
 
-    // Validate the parsed markers
-    const validMarkers = labMarkers.filter(marker => 
-      marker.name && 
-      typeof marker.name === 'string' && 
-      marker.name.trim().length > 0 &&
-      typeof marker.value === 'number' && 
+    // Validate
+    const validMarkers = labMarkers.filter(marker =>
+      marker.name &&
+      typeof marker.name === 'string' &&
+      typeof marker.value === 'number' &&
       !isNaN(marker.value)
     );
 
-    console.log(`Parsed ${validMarkers.length} valid lab markers`);
+    console.log(`✅ Parsed ${validMarkers.length} valid lab markers`);
 
     return new Response(JSON.stringify({ labMarkers: validMarkers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
