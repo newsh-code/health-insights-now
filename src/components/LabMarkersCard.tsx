@@ -8,15 +8,22 @@ import { useState } from 'react';
 interface LabMarker {
   name: string;
   value: number;
-  units?: string;
+  unit?: string;
+  units?: string; // Backward compatibility
   reference_range?: string;
+  status?: 'low' | 'normal' | 'high';
 }
 
 interface LabMarkersCardProps {
   extractedValues: LabMarker[];
 }
 
-const generateStatus = (name: string, value: number, referenceRange?: string): string => {
+const generateStatus = (name: string, value: number, referenceRange?: string, aiStatus?: 'low' | 'normal' | 'high'): string => {
+  // If AI provided status, use it (capitalize first letter)
+  if (aiStatus) {
+    return aiStatus.charAt(0).toUpperCase() + aiStatus.slice(1);
+  }
+
   const lowerName = name.toLowerCase();
   
   if (referenceRange) {
@@ -167,8 +174,8 @@ export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues 
         <CollapsibleContent>
           <CardContent className="space-y-4">
             {extractedValues.map((marker, index) => {
-              const status = generateStatus(marker.name, marker.value, marker.reference_range);
-              const interpretation = generateInterpretation(marker.name, marker.value, status, marker.units);
+              const status = generateStatus(marker.name, marker.value, marker.reference_range, marker.status);
+              const interpretation = generateInterpretation(marker.name, marker.value, status, marker.unit || marker.units);
               const cardColor = getStatusColor(status);
               const badgeColor = getBadgeColor(status);
               
@@ -185,7 +192,7 @@ export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues 
                     <div className="text-sm">
                       <span className="text-gray-600">Your Value: </span>
                       <span className="font-semibold text-gray-900">
-                        {marker.value} {marker.units || ''}
+                        {marker.value} {marker.unit || marker.units || ''}
                       </span>
                     </div>
                     {marker.reference_range && (

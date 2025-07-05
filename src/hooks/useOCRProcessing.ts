@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { processFile, LabMarker } from '@/utils/ocrUtils';
+import { extractTextFromFile, LabMarker } from '@/utils/ocrUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { UserInfo } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -22,35 +22,23 @@ export const useOCRProcessing = () => {
   const [insights, setInsights] = useState<string>('');
   const [parsedInsights, setParsedInsights] = useState<ParsedInsights | null>(null);
 
-  const filterLabMarkers = (markers: LabMarker[]): LabMarker[] => {
-    return markers.filter(marker => {
-      const name = marker.name.toLowerCase();
-      const value = String(marker.value);
-      
-      // Must have a numeric value
-      if (isNaN(Number(marker.value))) {
-        return false;
-      }
-      
-      // Must have a reference range to be considered a true lab marker
-      if (!marker.reference_range || typeof marker.reference_range !== 'string' || marker.reference_range.trim() === '') {
-        return false;
-      }
-      
-      // Exclude metadata entries
-      if (name.includes('age') || name.includes('date') || name.includes('time') ||
-          name.includes('patient') || name.includes('id') || name.includes('report') ||
-          name.includes('received') || name.includes('collected') || name.includes('specimen')) {
-        return false;
-      }
-      
-      // Exclude entries that look like dates
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value) || /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(value)) {
-        return false;
-      }
-      
-      return true;
+  const parseLabMarkersWithAI = async (ocrText: string): Promise<LabMarker[]> => {
+    console.log('Parsing OCR text with AI:', ocrText.substring(0, 200) + '...');
+    
+    const { data, error } = await supabase.functions.invoke('parse-lab-markers', {
+      body: { ocrText }
     });
+
+    if (error) {
+      console.error('AI parsing error:', error);
+      throw new Error(error.message || 'Failed to parse lab markers with AI');
+    }
+
+    if (!data?.labMarkers || !Array.isArray(data.labMarkers)) {
+      throw new Error('Invalid response from AI parser');
+    }
+
+    return data.labMarkers;
   };
 
   const processFileAndGenerateInsights = async (file: File, userInfo: UserInfo) => {
@@ -59,45 +47,46 @@ export const useOCRProcessing = () => {
     setParsedInsights(null);
     
     try {
-      // Step 1: Extract text and parse lab values
+      // Step 1: Extract raw text from file
       console.log('Processing file:', file.name);
-      const labValues = await processFile(file);
-      console.log('Extracted lab values:', labValues);
+      const ocrText = await extractTextFromFile(file);
+      console.log('Extracted OCR text length:', ocrText.length);
       
-      if (labValues.length === 0) {
+      if (!ocrText || ocrText.trim().length === 0) {
         toast({
-          title: "No lab values found",
-          description: "We couldn't extract any lab values from your file. Please try a clearer image or different file.",
+          title: "No text found",
+          description: "We couldn't extract any text from your file. Please try a clearer image or different file.",
           variant: "destructive",
         });
         return;
       }
 
-      // Filter out non-marker data
-      const filteredLabValues = filterLabMarkers(labValues);
-      console.log('Filtered lab values:', filteredLabValues);
+      // Step 2: Parse lab markers using AI
+      console.log('Parsing lab markers with AI...');
+      const aiParsedMarkers = await parseLabMarkersWithAI(ocrText);
+      console.log('AI parsed markers:', aiParsedMarkers);
       
-      if (filteredLabValues.length === 0) {
+      if (aiParsedMarkers.length === 0) {
         toast({
           title: "No valid lab markers found",
-          description: "No valid lab markers were extracted. Please try a different image.",
+          description: "No valid lab markers were identified in your file. Please try a different lab report.",
           variant: "destructive",
         });
         return;
       }
       
-      setExtractedValues(filteredLabValues);
+      setExtractedValues(aiParsedMarkers);
       
-      // Step 2: Generate insights using Supabase Edge Function
-      console.log('Generating insights with payload:', {
+      // Step 3: Generate insights using Supabase Edge Function
+      console.log('Generating insights with AI-parsed data:', {
         user_info: userInfo,
-        lab_values: filteredLabValues
+        lab_values: aiParsedMarkers
       });
       
       const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: {
           user_info: userInfo,
-          lab_values: filteredLabValues
+          lab_values: aiParsedMarkers
         }
       });
 
@@ -122,7 +111,7 @@ export const useOCRProcessing = () => {
         
         toast({
           title: "Analysis complete!",
-          description: `Found ${filteredLabValues.length} lab markers and generated personalized insights.`,
+          description: `Found ${aiParsedMarkers.length} lab markers and generated personalized insights.`,
         });
       } else {
         throw new Error('No insights received from AI');
