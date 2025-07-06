@@ -22,15 +22,29 @@ serve(async (req) => {
   }
 
   try {
-    const { ocrText } = await req.json();
-    console.log('🧾 Received OCR text for parsing');
+    const requestBody = await req.json();
+    const { text } = requestBody;
+    
+    console.log('🧾 Received request for OCR text parsing');
 
-    if (!ocrText || typeof ocrText !== 'string' || ocrText.trim().length === 0) {
-      return new Response(JSON.stringify({ error: 'No OCR text provided' }), {
+    // Validate text field exists and is a string
+    if (!text || typeof text !== 'string') {
+      console.warn('⚠️ Missing or invalid `text` field in request body');
+      return new Response(JSON.stringify({ error: 'Missing or invalid `text` field in request body.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    if (text.trim().length === 0) {
+      console.warn('⚠️ Empty text provided');
+      return new Response(JSON.stringify({ error: 'Text field cannot be empty.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('📄 Full OCR text length:', text.length);
 
     const prompt = `
 You are a medical data extractor. Given the OCR text from a lab report, extract only valid lab markers into a **pure JSON array**.
@@ -49,7 +63,7 @@ You are a medical data extractor. Given the OCR text from a lab report, extract 
 ❌ Do NOT include explanations or extra text
 
 OCR Text:
-"""${ocrText}"""
+"""${text}"""
 
 Return ONLY this format:
 [

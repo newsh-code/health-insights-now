@@ -26,7 +26,7 @@ export const useOCRProcessing = () => {
     console.log('Parsing OCR text with AI:', ocrText.substring(0, 200) + '...');
     
     const { data, error } = await supabase.functions.invoke('parse-lab-markers', {
-      body: { ocrText }
+      body: { text: ocrText }
     });
 
     if (error) {
