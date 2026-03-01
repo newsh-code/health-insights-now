@@ -219,6 +219,17 @@ Your entire response must be ONLY the JSON array — starting with [ and ending 
 
     console.log(`[parse-lab-markers] Done — ${validMarkers.length} of ${labMarkers.length} markers valid`);
 
+    if (validMarkers.length === 0) {
+      console.warn('[parse-lab-markers] Zero valid markers — returning 422');
+      return new Response(
+        JSON.stringify({
+          error: 'no_lab_markers',
+          message: "We couldn't find any lab markers in this file. Please make sure you're uploading a blood test results document (PDF or photo of a lab report).",
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ labMarkers: validMarkers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -10,12 +10,14 @@ import { UserInfo, ProcessingState, LabMarker, AnalysisResult } from '@/types';
 import { useOCRProcessing } from '@/hooks/useOCRProcessing';
 import { getMockLabMarkers, getMockAnalysisResult, simulateProcessing } from '@/utils/mockData';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { AlertCircle, ExternalLink } from 'lucide-react';
 
 const Index = () => {
   const [userInfo, setUserInfo] = useState<UserInfo>({});
   const [showResults, setShowResults] = useState(false);
   const [useRealOCR, setUseRealOCR] = useState(false);
+  const [uploadKey, setUploadKey] = useState(0);
 
   // Demo-mode state (no edge functions involved)
   const [demoProcessing, setDemoProcessing] = useState(false);
@@ -28,7 +30,7 @@ const Index = () => {
   const [demoAnalysis, setDemoAnalysis] = useState<AnalysisResult | null>(null);
 
   // Real-OCR-mode state from hook
-  const { isProcessing, extractedValues, analysisResult, processFileAndGenerateInsights } =
+  const { isProcessing, extractedValues, analysisResult, uploadError, clearUploadError, processFileAndGenerateInsights } =
     useOCRProcessing();
 
   const isProfileComplete = !!(userInfo.age && userInfo.sex && userInfo.activity);
@@ -85,6 +87,8 @@ const Index = () => {
                   setShowResults(false);
                   setDemoMarkers([]);
                   setDemoAnalysis(null);
+                  clearUploadError();
+                  setUploadKey(k => k + 1);
                 }}
               >
                 {useRealOCR ? 'Real OCR ON' : 'Demo Mode'}
@@ -142,10 +146,37 @@ const Index = () => {
         {!showResults && (
           <div className="mb-8">
             <FileUpload
+              key={uploadKey}
               onFileUpload={handleFileUpload}
               isProcessing={isCurrentlyProcessing}
               disabled={!isProfileComplete}
             />
+          </div>
+        )}
+
+        {/* Upload error state (real OCR mode only) */}
+        {useRealOCR && uploadError && !isCurrentlyProcessing && (
+          <div className="mb-8">
+            <Card className="p-6 border-orange-200 bg-orange-50">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-orange-800 mb-1">Couldn't process this file</h3>
+                  <p className="text-sm text-orange-700 mb-3">{uploadError}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    onClick={() => {
+                      clearUploadError();
+                      setUploadKey(k => k + 1);
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
 

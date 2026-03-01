@@ -1,7 +1,9 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, Image, CheckCircle, Lock } from 'lucide-react';
+import { Upload, FileText, Image, CheckCircle, Lock, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+
+const ACCEPTED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void;
@@ -13,6 +15,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
+  const [fileTypeError, setFileTypeError] = useState<string | null>(null);
   const isBlocked = disabled || isProcessing;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -30,18 +33,23 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
     setIsDragOver(false);
     if (isBlocked) return;
 
-    const files = Array.from(e.dataTransfer.files);
-    const file = files[0];
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
 
-    if (file && (file.type === 'application/pdf' || file.type.startsWith('image/'))) {
-      setUploadedFile(file);
-      onFileUpload(file);
+    if (!ACCEPTED_TYPES.has(file.type)) {
+      setFileTypeError('Only PDF, JPG, and PNG files are accepted.');
+      return;
     }
+
+    setFileTypeError(null);
+    setUploadedFile(file);
+    onFileUpload(file);
   }, [isBlocked, onFileUpload]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setFileTypeError(null);
       setUploadedFile(file);
       onFileUpload(file);
     }
@@ -120,6 +128,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
         >
           Choose File
         </label>
+
+        {fileTypeError && (
+          <div className="flex items-center justify-center space-x-2 mt-4 text-sm text-red-600">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{fileTypeError}</span>
+          </div>
+        )}
 
         <p className="text-xs text-gray-400 mt-4">
           <span className="font-medium">Privacy:</span> We automatically redact personal info like names & barcodes
