@@ -120,7 +120,9 @@ export const getMockAnalysisResult = (): AnalysisResult => ({
       'Chronic stress raises cortisol, which can negatively impact cholesterol. Consider mindfulness, yoga, or daily walks.',
     ],
   },
-  urgent_flags: [],
+  urgent_flags: [
+    'LDL Cholesterol is significantly elevated at 130 mg/dL (target < 100 mg/dL). Please discuss cardiovascular risk assessment with your doctor.',
+  ],
   disclaimer: 'This analysis is for educational purposes only and is not a substitute for professional medical advice. Please consult with your healthcare provider before making any changes to your health routine.',
 });
 

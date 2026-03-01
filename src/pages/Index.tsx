@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
 import { ProcessingFlow } from '@/components/ProcessingFlow';
-import { LabMarkersCard } from '@/components/LabMarkersCard';
-import { AIInsights } from '@/components/AIInsights';
+import { ResultsTriage } from '@/components/ResultsTriage';
 import { EmailResults } from '@/components/EmailResults';
 import { UserInfo, ProcessingState, LabMarker, AnalysisResult } from '@/types';
 import { useOCRProcessing } from '@/hooks/useOCRProcessing';
@@ -223,16 +222,10 @@ const Index = () => {
               </p>
             </div>
 
-            {/* Per-marker cards */}
-            {displayMarkers.length > 0 && (
-              <LabMarkersCard
-                extractedValues={displayMarkers}
-                markerAnalyses={displayAnalysis?.markers}
-              />
+            {/* Tiered results: urgent flags → needs attention → all good → summary → lifestyle */}
+            {displayAnalysis && (
+              <ResultsTriage extractedValues={displayMarkers} insights={displayAnalysis} />
             )}
-
-            {/* Overall summary + lifestyle recs + urgent flags */}
-            {displayAnalysis && <AIInsights insights={displayAnalysis} />}
 
             {/* Email results */}
             {(displayMarkers.length > 0 || displayAnalysis) && (
