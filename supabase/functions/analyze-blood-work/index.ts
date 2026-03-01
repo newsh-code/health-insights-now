@@ -120,6 +120,24 @@ function formatMarkerLine(m: LabMarker): string {
   );
 }
 
+// ── Clinical direction guidance (shared across prompts) ───────────────────────
+
+const CLINICAL_DIRECTION_GUIDANCE = `
+IMPORTANT — clinical direction of markers:
+Not all above-range values are negative, and not all below-range values are positive. Evaluate each result by its clinical direction, not just whether it deviates from the reference range.
+
+Markers where ABOVE range is optimal or beneficial:
+- HDL Cholesterol: above range is cardioprotective — describe it positively, set status to "normal"
+- HDL % of total cholesterol (HDL ratio): above range is protective — treat as "normal"
+- eGFR (estimated Glomerular Filtration Rate): above range indicates excellent kidney function — treat as "normal"
+- Vitamin D: above range up to approximately 150 ng/mL (375 nmol/L) is optimal — treat as "normal"; only flag as concerning above clearly toxic levels
+
+Markers where ABOVE range warrants attention but is NOT urgent in the same way as liver enzymes:
+- Ferritin: mildly elevated ferritin is worth discussing with a doctor (may indicate inflammation, iron overload, or lifestyle factors) but should not be urgently flagged unless very markedly elevated (e.g., >1000 µg/L). Use measured, non-alarming language.
+
+General principle: before labelling any result as "high" or "low", consider whether a deviation in that direction is clinically meaningful or potentially beneficial for this patient. An athlete with slightly elevated RBC or haemoglobin, or a patient with above-range HDL, should receive an explanation that reflects the clinical reality — not generic concern about being outside a population-derived reference range.
+`.trim();
+
 // ── Phase 1: per-marker analysis in batches ───────────────────────────────────
 
 async function analyzeMarkerBatch(
@@ -138,10 +156,12 @@ Analyze these ${markers.length} lab markers for this patient.
 
 ${markersText}
 
+${CLINICAL_DIRECTION_GUIDANCE}
+
 Return ONLY a JSON array — no markdown, no code fences, no explanation. Each object must have exactly these fields:
 - "name": the marker name exactly as written above
-- "status": "low", "normal", or "high" (use the provided status in brackets if present)
-- "explanation": 2-3 plain-English sentences about what this result means for this patient, personalised to their profile
+- "status": "low", "normal", or "high" — apply clinical direction rules above before assigning; a result that is above range but clinically beneficial (e.g. HDL, eGFR, Vitamin D within safe limits) should be "normal"
+- "explanation": 2-3 plain-English sentences about what this result means for this patient, personalised to their profile; if a result is above range but clinically positive, say so clearly
 - "conversation_starter": a specific, natural question this patient could ask their doctor about this marker
 
 Your entire response must be ONLY the JSON array, starting with [ and ending with ].`;
@@ -178,17 +198,19 @@ async function generateOverallInsights(
 Full lab panel (${allMarkers.length} markers):
 ${markersSummary}
 
+${CLINICAL_DIRECTION_GUIDANCE}
+
 Based on the complete panel, return ONLY a JSON object — no markdown, no code fences — with these fields:
 
 {
-  "summary": "<2-3 sentence overall interpretation of the panel, personalised to this patient's profile and goals>",
+  "summary": "<2-3 sentence overall interpretation of the panel, personalised to this patient's profile and goals; acknowledge any positively out-of-range results as strengths>",
   "lifestyle_recommendations": {
     "diet": ["<specific, actionable recommendation>"],
     "exercise": ["<specific recommendation>"],
     "sleep": ["<specific recommendation>"],
     "stress": ["<specific recommendation>"]
   },
-  "urgent_flags": ["<only include markers that are critically abnormal and warrant prompt evaluation — omit array items if none>"],
+  "urgent_flags": ["<only include markers that are critically abnormal in a clinically harmful direction and warrant prompt medical evaluation — do NOT include markers that are above range but clinically beneficial (HDL, eGFR, Vitamin D within safe limits) — omit array items if none>"],
   "disclaimer": "This analysis is for educational purposes only and is not a substitute for professional medical advice. Please consult with your healthcare provider before making any changes to your health routine."
 }
 
