@@ -1,21 +1,24 @@
 
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, Image, CheckCircle } from 'lucide-react';
+import { Upload, FileText, Image, CheckCircle, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void;
   isProcessing: boolean;
+  disabled?: boolean;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing }) => {
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, disabled = false }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
+  const isBlocked = disabled || isProcessing;
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
-  }, []);
+    if (!isBlocked) setIsDragOver(true);
+  }, [isBlocked]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -25,15 +28,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+    if (isBlocked) return;
+
     const files = Array.from(e.dataTransfer.files);
     const file = files[0];
-    
+
     if (file && (file.type === 'application/pdf' || file.type.startsWith('image/'))) {
       setUploadedFile(file);
       onFileUpload(file);
     }
-  }, [onFileUpload]);
+  }, [isBlocked, onFileUpload]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,6 +61,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
     );
   }
 
+  if (disabled) {
+    return (
+      <Card className="p-8 border-2 border-dashed border-gray-200 bg-gray-50 opacity-60">
+        <div className="text-center">
+          <Lock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-xl font-semibold mb-2 text-gray-400">
+            Upload Your Blood Test Results
+          </h3>
+          <p className="text-gray-400 text-sm">
+            Complete your profile above (age, biological sex, activity level) to unlock upload.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card
       className={`p-8 border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 ${
@@ -74,7 +94,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
         <p className="text-gray-500 mb-6">
           Drag & drop your PDF or photo here, or click to browse
         </p>
-        
+
         <div className="flex justify-center space-x-4 mb-6">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <FileText className="w-4 h-4" />
@@ -100,7 +120,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessi
         >
           Choose File
         </label>
-        
+
         <p className="text-xs text-gray-400 mt-4">
           <span className="font-medium">Privacy:</span> We automatically redact personal info like names & barcodes
         </p>

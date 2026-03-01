@@ -98,11 +98,17 @@ serve(async (req) => {
 
     const prompt = `Extract all lab test results from this document.
 
-Return ONLY a valid JSON array — no markdown, no code fences, no explanation.
+IMPORTANT — document format:
+- This document may have been converted from HTML or a web page. You will likely see HTML tags (<html>, <body>, <table>, <tr>, <td>, <div>, <span>, etc.), CSS styles, JavaScript, navigation menus, headers, footers, and other web markup.
+- Completely ignore all HTML tags, CSS, JavaScript, and page-structure markup.
+- Focus ONLY on the actual lab test data — typically found in table rows or structured lists within the content.
+
+Return ONLY a valid JSON array — no markdown, no code fences, no explanation, no preamble.
 
 Rules:
 - Include only genuine lab test results with numeric values
 - Skip patient demographics (name, DOB, address, ordering physician, etc.)
+- Skip page elements like navigation, logos, disclaimers, and contact information
 - Each entry must have:
   • "name" (string) — the test name
   • "value" (number) — the numeric result
@@ -116,7 +122,7 @@ Example output format:
   { "name": "Glucose", "value": 112, "unit": "mg/dL", "reference_range": "70–99", "status": "high" }
 ]
 
-Return ONLY the JSON array.`;
+Your entire response must be ONLY the JSON array — starting with [ and ending with ]. No other text.`;
 
     // --- 6. Call Claude ---
     console.log('[parse-lab-markers] Step 6: calling Anthropic API');
@@ -161,20 +167,46 @@ Return ONLY the JSON array.`;
     // --- 8. Parse and validate Claude response ---
     console.log('[parse-lab-markers] Step 8: parsing Claude response');
     const anthropicData = await anthropicResponse.json();
-    let content: string = anthropicData.content?.[0]?.text ?? '';
-    console.log('[parse-lab-markers] Claude preview (300 chars):', content.slice(0, 300));
+    const rawClaudeText: string = anthropicData.content?.[0]?.text ?? '';
 
-    content = content.trim();
-    if (content.startsWith('```')) {
-      content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    }
+    // Log the FULL raw response before any manipulation so we can see exactly
+    // what Claude returned when debugging parse failures.
+    console.log('[parse-lab-markers] Claude raw response length:', rawClaudeText.length);
+    console.log('[parse-lab-markers] Claude raw response FULL:', rawClaudeText);
+
+    // Robustly extract a JSON array from whatever Claude returned.
+    // Handles: clean array, markdown code fence, array embedded in prose.
+    const extractJsonArray = (text: string): string => {
+      const trimmed = text.trim();
+
+      // 1. Already a bare JSON array
+      if (trimmed.startsWith('[')) return trimmed;
+
+      // 2. Wrapped in a markdown code fence — ```json ... ``` or ``` ... ```
+      const fenceMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (fenceMatch) {
+        const inner = fenceMatch[1].trim();
+        if (inner.startsWith('[')) return inner;
+      }
+
+      // 3. JSON array embedded somewhere in surrounding prose
+      const arrayMatch = text.match(/\[[\s\S]*\]/);
+      if (arrayMatch) return arrayMatch[0];
+
+      // Nothing found — return trimmed text so the JSON.parse below produces
+      // a descriptive error
+      return trimmed;
+    };
+
+    const extracted = extractJsonArray(rawClaudeText);
+    console.log('[parse-lab-markers] Extracted candidate (first 500 chars):', extracted.slice(0, 500));
 
     let labMarkers: LabMarker[] = [];
     try {
-      labMarkers = JSON.parse(content);
+      labMarkers = JSON.parse(extracted);
     } catch (jsonErr) {
-      console.error('[parse-lab-markers] Failed to parse Claude output:', jsonErr);
-      console.error('[parse-lab-markers] Full Claude output:', content);
+      console.error('[parse-lab-markers] JSON.parse failed:', jsonErr);
+      console.error('[parse-lab-markers] Candidate that failed to parse:', extracted);
       return new Response(JSON.stringify({ error: 'Claude returned invalid JSON.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

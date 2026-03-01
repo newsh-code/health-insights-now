@@ -31,6 +31,8 @@ const Index = () => {
   const { isProcessing, extractedValues, analysisResult, processFileAndGenerateInsights } =
     useOCRProcessing();
 
+  const isProfileComplete = !!(userInfo.age && userInfo.sex && userInfo.activity);
+
   // Derived display values — switch between real and demo data
   const displayMarkers = useRealOCR ? extractedValues : demoMarkers;
   const displayAnalysis = useRealOCR ? analysisResult : demoAnalysis;
@@ -129,22 +131,28 @@ const Index = () => {
           )}
         </div>
 
-        {/* File Upload */}
-        <div className="mb-8">
-          <FileUpload onFileUpload={handleFileUpload} isProcessing={isCurrentlyProcessing} />
-        </div>
+        {/* User Profile — always visible before results */}
+        {!showResults && (
+          <div className="mb-8">
+            <UserInfoCard userInfo={userInfo} onUserInfoChange={setUserInfo} />
+          </div>
+        )}
+
+        {/* File Upload — unlocked once required profile fields are filled */}
+        {!showResults && (
+          <div className="mb-8">
+            <FileUpload
+              onFileUpload={handleFileUpload}
+              isProcessing={isCurrentlyProcessing}
+              disabled={!isProfileComplete}
+            />
+          </div>
+        )}
 
         {/* Processing indicator */}
         {isCurrentlyProcessing && (
           <div className="mb-8">
             <ProcessingFlow processingState={displayProcessingState} />
-          </div>
-        )}
-
-        {/* User Info — visible before results, not during processing */}
-        {!isCurrentlyProcessing && !showResults && (
-          <div className="mb-8">
-            <UserInfoCard userInfo={userInfo} onUserInfoChange={setUserInfo} />
           </div>
         )}
 

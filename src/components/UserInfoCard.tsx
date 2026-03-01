@@ -20,13 +20,18 @@ export const UserInfoCard: React.FC<UserInfoCardProps> = ({ userInfo, onUserInfo
     <Card className="bg-white border-gray-200 shadow-sm">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg text-gray-800">
-          Personalize Your Insights <span className="text-sm font-normal text-gray-500">(Optional)</span>
+          Your Profile
         </CardTitle>
+        <p className="text-sm text-gray-500 mt-1">
+          Required fields (<span className="text-red-500">*</span>) must be filled before uploading.
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="age" className="text-sm font-medium text-gray-700">Age</Label>
+            <Label htmlFor="age" className="text-sm font-medium text-gray-700">
+              Age <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="age"
               type="number"
@@ -38,7 +43,9 @@ export const UserInfoCard: React.FC<UserInfoCardProps> = ({ userInfo, onUserInfo
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="sex" className="text-sm font-medium text-gray-700">Sex</Label>
+            <Label htmlFor="sex" className="text-sm font-medium text-gray-700">
+              Biological Sex <span className="text-red-500">*</span>
+            </Label>
             <Select value={userInfo.sex || ''} onValueChange={(value) => updateUserInfo('sex', value as UserInfo['sex'])}>
               <SelectTrigger className="border-gray-300">
                 <SelectValue placeholder="Select" />
@@ -71,7 +78,9 @@ export const UserInfoCard: React.FC<UserInfoCardProps> = ({ userInfo, onUserInfo
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="activity" className="text-sm font-medium text-gray-700">Activity Level</Label>
+            <Label htmlFor="activity" className="text-sm font-medium text-gray-700">
+              Activity Level <span className="text-red-500">*</span>
+            </Label>
             <Select value={userInfo.activity || ''} onValueChange={(value) => updateUserInfo('activity', value as UserInfo['activity'])}>
               <SelectTrigger className="border-gray-300">
                 <SelectValue placeholder="Select level" />
