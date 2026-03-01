@@ -202,8 +202,8 @@ const Index = () => {
           </div>
         )}
 
-        {/* Results */}
-        {showResults && !isCurrentlyProcessing && (
+        {/* Results — only render when there is actual analysis data and no error */}
+        {showResults && !isCurrentlyProcessing && !!displayAnalysis && !uploadError && (
           <div className="mb-8 space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
