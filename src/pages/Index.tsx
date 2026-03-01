@@ -6,27 +6,58 @@ import { ProcessingFlow } from '@/components/ProcessingFlow';
 import { LabMarkersCard } from '@/components/LabMarkersCard';
 import { AIInsights } from '@/components/AIInsights';
 import { EmailResults } from '@/components/EmailResults';
-import { UserInfo, ProcessingState } from '@/types';
+import { UserInfo, ProcessingState, LabMarker, AnalysisResult } from '@/types';
 import { useOCRProcessing } from '@/hooks/useOCRProcessing';
+import { getMockLabMarkers, getMockAnalysisResult, simulateProcessing } from '@/utils/mockData';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 
 const Index = () => {
   const [userInfo, setUserInfo] = useState<UserInfo>({});
-  const [processingState] = useState<ProcessingState>({
+  const [showResults, setShowResults] = useState(false);
+  const [useRealOCR, setUseRealOCR] = useState(false);
+
+  // Demo-mode state (no edge functions involved)
+  const [demoProcessing, setDemoProcessing] = useState(false);
+  const [demoProcessingState, setDemoProcessingState] = useState<ProcessingState>({
     isProcessing: false,
     stage: 'uploading',
     progress: 0,
   });
-  const [showResults, setShowResults] = useState(false);
-  const [useRealOCR, setUseRealOCR] = useState(false);
+  const [demoMarkers, setDemoMarkers] = useState<LabMarker[]>([]);
+  const [demoAnalysis, setDemoAnalysis] = useState<AnalysisResult | null>(null);
 
+  // Real-OCR-mode state from hook
   const { isProcessing, extractedValues, analysisResult, processFileAndGenerateInsights } =
     useOCRProcessing();
+
+  // Derived display values — switch between real and demo data
+  const displayMarkers = useRealOCR ? extractedValues : demoMarkers;
+  const displayAnalysis = useRealOCR ? analysisResult : demoAnalysis;
+  const isCurrentlyProcessing = useRealOCR ? isProcessing : demoProcessing;
+  const displayProcessingState: ProcessingState = useRealOCR
+    ? { isProcessing, stage: 'analyzing', progress: 75 }
+    : demoProcessingState;
 
   const handleFileUpload = async (file: File) => {
     if (useRealOCR) {
       await processFileAndGenerateInsights(file, userInfo);
+      setShowResults(true);
+    } else {
+      // Demo mode: animate through processing stages then show mock data
+      setDemoProcessing(true);
+      setDemoMarkers([]);
+      setDemoAnalysis(null);
+      setShowResults(false);
+
+      await simulateProcessing((stage, progress) => {
+        setDemoProcessingState({ isProcessing: true, stage, progress });
+      });
+
+      setDemoMarkers(getMockLabMarkers());
+      setDemoAnalysis(getMockAnalysisResult());
+      setDemoProcessing(false);
+      setDemoProcessingState({ isProcessing: false, stage: 'complete', progress: 100 });
       setShowResults(true);
     }
   };
@@ -47,7 +78,12 @@ const Index = () => {
               <Button
                 variant={useRealOCR ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setUseRealOCR(!useRealOCR)}
+                onClick={() => {
+                  setUseRealOCR(!useRealOCR);
+                  setShowResults(false);
+                  setDemoMarkers([]);
+                  setDemoAnalysis(null);
+                }}
               >
                 {useRealOCR ? 'Real OCR ON' : 'Demo Mode'}
               </Button>
@@ -76,11 +112,18 @@ const Index = () => {
             Drag & drop your PDF or photo of lab results. No sign-up needed. Get AI-powered
             recommendations tailored to your biomarkers.
           </p>
-          {useRealOCR && (
+          {useRealOCR ? (
             <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mb-6 max-w-2xl mx-auto">
               <p className="text-blue-800 text-sm">
-                <strong>Real OCR Mode:</strong> Your files will be processed using OCR and analysed
-                by Claude AI. Files are not stored.
+                <strong>Real OCR Mode:</strong> Your file will be sent to Claude AI for analysis.
+                Files are not stored.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-6 max-w-2xl mx-auto">
+              <p className="text-amber-800 text-sm">
+                <strong>Demo Mode:</strong> Upload any file to see a sample results page. No data
+                is sent anywhere. Switch to Real OCR Mode to analyse your actual report.
               </p>
             </div>
           )}
@@ -88,87 +131,71 @@ const Index = () => {
 
         {/* File Upload */}
         <div className="mb-8">
-          <FileUpload onFileUpload={handleFileUpload} isProcessing={isProcessing} />
+          <FileUpload onFileUpload={handleFileUpload} isProcessing={isCurrentlyProcessing} />
         </div>
 
         {/* Processing indicator */}
-        {isProcessing && (
+        {isCurrentlyProcessing && (
           <div className="mb-8">
-            <ProcessingFlow
-              processingState={{
-                isProcessing: true,
-                stage: 'analyzing',
-                progress: 75,
-              }}
-            />
+            <ProcessingFlow processingState={displayProcessingState} />
           </div>
         )}
 
-        {/* User Info — visible before upload when not processing */}
-        {!isProcessing && !showResults && (
+        {/* User Info — visible before results, not during processing */}
+        {!isCurrentlyProcessing && !showResults && (
           <div className="mb-8">
             <UserInfoCard userInfo={userInfo} onUserInfoChange={setUserInfo} />
           </div>
         )}
 
         {/* Results */}
-        {showResults && useRealOCR && (
+        {showResults && !isCurrentlyProcessing && (
           <div className="mb-8 space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Your Personalized Health Insights
+                {useRealOCR ? 'Your Personalized Health Insights' : 'Sample Health Insights (Demo)'}
               </h2>
               <p className="text-gray-600">
-                Based on your lab results
-                {userInfo.age && `, age ${userInfo.age}`}
-                {userInfo.sex &&
-                  `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
-                {userInfo.goals && `, goal: ${userInfo.goals.replace('-', ' ')}`}
+                {useRealOCR ? (
+                  <>
+                    Based on your lab results
+                    {userInfo.age && `, age ${userInfo.age}`}
+                    {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
+                    {userInfo.goals && `, goal: ${userInfo.goals.replace('-', ' ')}`}
+                  </>
+                ) : (
+                  'This is sample data. Switch to Real OCR Mode and upload your own report for personalised insights.'
+                )}
               </p>
             </div>
 
-            {/* Per-marker cards with AI explanations + conversation starters */}
-            {extractedValues.length > 0 && (
+            {/* Per-marker cards */}
+            {displayMarkers.length > 0 && (
               <LabMarkersCard
-                extractedValues={extractedValues}
-                markerAnalyses={analysisResult?.markers}
+                extractedValues={displayMarkers}
+                markerAnalyses={displayAnalysis?.markers}
               />
             )}
 
             {/* Overall summary + lifestyle recs + urgent flags */}
-            {analysisResult && (
-              <AIInsights insights={analysisResult} />
-            )}
+            {displayAnalysis && <AIInsights insights={displayAnalysis} />}
 
             {/* Email results */}
-            {(extractedValues.length > 0 || analysisResult) && (
+            {(displayMarkers.length > 0 || displayAnalysis) && (
               <EmailResults
-                extractedValues={extractedValues}
+                extractedValues={displayMarkers}
                 parsedInsights={
-                  analysisResult
+                  displayAnalysis
                     ? {
-                        interpretation: analysisResult.summary,
-                        lifestyle_recommendations: analysisResult.lifestyle_recommendations,
-                        urgent_flags: analysisResult.urgent_flags,
-                        disclaimer: analysisResult.disclaimer,
+                        interpretation: displayAnalysis.summary,
+                        lifestyle_recommendations: displayAnalysis.lifestyle_recommendations,
+                        urgent_flags: displayAnalysis.urgent_flags,
+                        disclaimer: displayAnalysis.disclaimer,
                       }
                     : null
                 }
               />
             )}
-          </div>
-        )}
-
-        {/* Demo mode message */}
-        {!useRealOCR && showResults && (
-          <div className="mb-8">
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 text-center">
-              <h3 className="text-lg font-semibold text-amber-800 mb-2">Demo Mode Active</h3>
-              <p className="text-amber-700">
-                Enable "Real OCR Mode" above to process your lab results and get personalized
-                insights.
-              </p>
-            </div>
           </div>
         )}
 
@@ -182,8 +209,8 @@ const Index = () => {
             </p>
             <p>
               <strong>Privacy:</strong> Your files are processed securely and not stored on our
-              servers.
-              <a href="#" className="text-blue-600 hover:underline ml-1">
+              servers.{' '}
+              <a href="#" className="text-blue-600 hover:underline">
                 Data Policy
               </a>
             </p>

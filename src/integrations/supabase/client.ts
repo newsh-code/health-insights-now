@@ -2,13 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://rmknhbjyzhojtgcjmbvc.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_7YSxaZFUh5nFWCRvjiRHgQ_SGmUdCNr";
+// Prefer env vars (set in Vercel / .env.local) so the correct JWT anon key
+// is used. The hardcoded fallbacks are for convenience but the sb_publishable_*
+// format is NOT accepted as an Authorization Bearer token by Edge Functions —
+// you must use the JWT key from Project Settings → API → anon/public.
+export const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ?? "https://rmknhbjyzhojtgcjmbvc.supabase.co";
+export const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ?? "sb_publishable_7YSxaZFUh5nFWCRvjiRHgQ_SGmUdCNr";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
