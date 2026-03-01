@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { UserInfoCard } from '@/components/UserInfoCard';
 import { ProcessingFlow } from '@/components/ProcessingFlow';
@@ -13,8 +13,23 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertCircle, ExternalLink } from 'lucide-react';
 
+const PROFILE_KEY = 'biolens_user_profile';
+
+const loadProfile = (): UserInfo => {
+  try {
+    const stored = localStorage.getItem(PROFILE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
 const Index = () => {
-  const [userInfo, setUserInfo] = useState<UserInfo>({});
+  const [userInfo, setUserInfo] = useState<UserInfo>(loadProfile);
+
+  useEffect(() => {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(userInfo));
+  }, [userInfo]);
   const [showResults, setShowResults] = useState(false);
   const [useRealOCR, setUseRealOCR] = useState(false);
   const [uploadKey, setUploadKey] = useState(0);
