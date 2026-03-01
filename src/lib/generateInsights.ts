@@ -16,7 +16,7 @@ export async function generateInsights(
   user_info: UserInfo,
   lab_values: LabValue[]
 ): Promise<string> {
-  const res = await fetch('https://whimlsodrdodriszolyy.functions.supabase.co/generate-insights', {
+  const res = await fetch('https://rmknhbjyzhojtgcjmbvc.functions.supabase.co/generate-insights', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

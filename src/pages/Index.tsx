@@ -13,33 +13,23 @@ import { ExternalLink } from 'lucide-react';
 
 const Index = () => {
   const [userInfo, setUserInfo] = useState<UserInfo>({});
-  const [processingState, setProcessingState] = useState<ProcessingState>({
+  const [processingState] = useState<ProcessingState>({
     isProcessing: false,
     stage: 'uploading',
-    progress: 0
+    progress: 0,
   });
   const [showResults, setShowResults] = useState(false);
   const [useRealOCR, setUseRealOCR] = useState(false);
-  
-  const { isProcessing: ocrProcessing, extractedValues, parsedInsights, processFileAndGenerateInsights } = useOCRProcessing();
+
+  const { isProcessing, extractedValues, analysisResult, processFileAndGenerateInsights } =
+    useOCRProcessing();
 
   const handleFileUpload = async (file: File) => {
-    console.log('File uploaded:', file.name, 'Real OCR mode:', useRealOCR);
-    
     if (useRealOCR) {
-      // Use real OCR + AI pipeline with user info
-      console.log('Processing with user info:', userInfo);
       await processFileAndGenerateInsights(file, userInfo);
-      
-      // Set showResults to true after processing completes
       setShowResults(true);
-    } else {
-      // Demo mode - show message that real processing is needed
-      console.log('Demo mode - real processing disabled');
     }
   };
-
-  const isCurrentlyProcessing = processingState.isProcessing || ocrProcessing;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -54,12 +44,12 @@ const Index = () => {
               <h1 className="text-xl font-bold text-gray-900">BioLens</h1>
             </div>
             <div className="flex items-center space-x-2">
-              <Button 
-                variant={useRealOCR ? "default" : "outline"} 
-                size="sm" 
+              <Button
+                variant={useRealOCR ? 'default' : 'outline'}
+                size="sm"
                 onClick={() => setUseRealOCR(!useRealOCR)}
               >
-                {useRealOCR ? "Real OCR ON" : "Demo Mode"}
+                {useRealOCR ? 'Real OCR ON' : 'Demo Mode'}
               </Button>
               <Button variant="outline" size="sm" className="hidden sm:flex">
                 <ExternalLink className="w-4 h-4 mr-2" />
@@ -71,7 +61,7 @@ const Index = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
+        {/* Hero */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Upload Your Blood Test.
@@ -83,14 +73,14 @@ const Index = () => {
             — Instantly.
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Drag & drop your PDF or photo of lab results. No sign-up needed.
-            Get AI-powered recommendations tailored to your biomarkers.
+            Drag & drop your PDF or photo of lab results. No sign-up needed. Get AI-powered
+            recommendations tailored to your biomarkers.
           </p>
           {useRealOCR && (
             <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mb-6 max-w-2xl mx-auto">
               <p className="text-blue-800 text-sm">
-                <strong>Real OCR Mode:</strong> Your files will be processed using OCR and sent to AI for analysis.
-                Files are not stored and processed securely.
+                <strong>Real OCR Mode:</strong> Your files will be processed using OCR and analysed
+                by Claude AI. Files are not stored.
               </p>
             </div>
           )}
@@ -98,83 +88,85 @@ const Index = () => {
 
         {/* File Upload */}
         <div className="mb-8">
-          <FileUpload 
-            onFileUpload={handleFileUpload} 
-            isProcessing={isCurrentlyProcessing}
-          />
+          <FileUpload onFileUpload={handleFileUpload} isProcessing={isProcessing} />
         </div>
 
-        {/* Processing Flow */}
-        {processingState.isProcessing && (
+        {/* Processing indicator */}
+        {isProcessing && (
           <div className="mb-8">
-            <ProcessingFlow processingState={processingState} />
-          </div>
-        )}
-
-        {/* OCR Processing Indicator */}
-        {ocrProcessing && (
-          <div className="mb-8">
-            <ProcessingFlow processingState={{
-              isProcessing: true,
-              stage: 'analyzing',
-              progress: 75
-            }} />
-          </div>
-        )}
-
-        {/* User Info Card - Show when not processing and no results yet */}
-        {!isCurrentlyProcessing && !showResults && (
-          <div className="mb-8">
-            <UserInfoCard 
-              userInfo={userInfo} 
-              onUserInfoChange={setUserInfo}
+            <ProcessingFlow
+              processingState={{
+                isProcessing: true,
+                stage: 'analyzing',
+                progress: 75,
+              }}
             />
           </div>
         )}
 
-        {/* Results Section */}
-        {showResults && useRealOCR && (
+        {/* User Info — visible before upload when not processing */}
+        {!isProcessing && !showResults && (
           <div className="mb-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Personalized Health Insights</h2>
+            <UserInfoCard userInfo={userInfo} onUserInfoChange={setUserInfo} />
+          </div>
+        )}
+
+        {/* Results */}
+        {showResults && useRealOCR && (
+          <div className="mb-8 space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Your Personalized Health Insights
+              </h2>
               <p className="text-gray-600">
                 Based on your lab results
                 {userInfo.age && `, age ${userInfo.age}`}
-                {userInfo.sex && `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
-                {userInfo.goals && `, with a goal to ${userInfo.goals.replace('-', ' ')}`}
+                {userInfo.sex &&
+                  `, ${userInfo.sex === 'M' ? 'male' : userInfo.sex === 'F' ? 'female' : userInfo.sex.toLowerCase()}`}
+                {userInfo.goals && `, goal: ${userInfo.goals.replace('-', ' ')}`}
               </p>
             </div>
 
-            {/* Lab Markers Section */}
-            {extractedValues && extractedValues.length > 0 && (
-              <div className="mb-6">
-                <LabMarkersCard extractedValues={extractedValues} />
-              </div>
+            {/* Per-marker cards with AI explanations + conversation starters */}
+            {extractedValues.length > 0 && (
+              <LabMarkersCard
+                extractedValues={extractedValues}
+                markerAnalyses={analysisResult?.markers}
+              />
             )}
 
-            {/* AI Insights Section */}
-            {parsedInsights && typeof parsedInsights === 'object' && (
-              <div className="mb-8">
-                <AIInsights insights={parsedInsights} />
-              </div>
+            {/* Overall summary + lifestyle recs + urgent flags */}
+            {analysisResult && (
+              <AIInsights insights={analysisResult} />
             )}
 
-            {/* Email Results Section */}
-            {(extractedValues?.length > 0 || parsedInsights) && (
-              <div className="mb-8">
-                <EmailResults extractedValues={extractedValues || []} parsedInsights={parsedInsights} />
-              </div>
+            {/* Email results */}
+            {(extractedValues.length > 0 || analysisResult) && (
+              <EmailResults
+                extractedValues={extractedValues}
+                parsedInsights={
+                  analysisResult
+                    ? {
+                        interpretation: analysisResult.summary,
+                        lifestyle_recommendations: analysisResult.lifestyle_recommendations,
+                        urgent_flags: analysisResult.urgent_flags,
+                        disclaimer: analysisResult.disclaimer,
+                      }
+                    : null
+                }
+              />
             )}
           </div>
         )}
 
-        {/* Demo Mode Message */}
+        {/* Demo mode message */}
         {!useRealOCR && showResults && (
           <div className="mb-8">
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 text-center">
               <h3 className="text-lg font-semibold text-amber-800 mb-2">Demo Mode Active</h3>
               <p className="text-amber-700">
-                Please enable "Real OCR Mode" to process your lab results and get personalized insights.
+                Enable "Real OCR Mode" above to process your lab results and get personalized
+                insights.
               </p>
             </div>
           </div>
@@ -184,12 +176,16 @@ const Index = () => {
         <footer className="mt-16 pt-8 border-t border-gray-200">
           <div className="text-center text-sm text-gray-500 space-y-2">
             <p>
-              <strong>Medical Disclaimer:</strong> This tool is for educational purposes only and is not a substitute for professional medical advice.
-              Always consult with your healthcare provider before making any changes to your health routine.
+              <strong>Medical Disclaimer:</strong> This tool is for educational purposes only and is
+              not a substitute for professional medical advice. Always consult with your healthcare
+              provider before making any changes to your health routine.
             </p>
             <p>
-              <strong>Privacy:</strong> Your files are processed securely and not stored on our servers.
-              <a href="#" className="text-blue-600 hover:underline ml-1">Data Policy</a>
+              <strong>Privacy:</strong> Your files are processed securely and not stored on our
+              servers.
+              <a href="#" className="text-blue-600 hover:underline ml-1">
+                Data Policy
+              </a>
             </p>
           </div>
         </footer>

@@ -2,96 +2,84 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { BadgeCheck, AlertCircle, HeartPulse } from 'lucide-react';
-
-interface StructuredInsights {
-  interpretation: string;
-  lifestyle_recommendations: {
-    diet: string[];
-    exercise: string[];
-    sleep: string[];
-    stress: string[];
-  };
-  urgent_flags: string[];
-  disclaimer: string;
-}
+import { AnalysisResult } from '@/types';
 
 interface Props {
-  insights: StructuredInsights;
+  insights: AnalysisResult;
 }
 
+const renderList = (items: string[]) => (
+  <ul className="list-disc list-inside space-y-1">
+    {items.map((item, i) => (
+      <li key={i} className="text-sm text-gray-700">
+        {item}
+      </li>
+    ))}
+  </ul>
+);
+
 export const AIInsights: React.FC<Props> = ({ insights }) => {
-  const renderList = (items: string[]) => (
-    <ul className="list-disc list-inside space-y-1">
-      {items.map((item, index) => (
-        <li key={index} className="text-sm text-gray-700">
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
+  const recs = insights.lifestyle_recommendations;
+  const hasRecs =
+    recs &&
+    (recs.diet?.length || recs.exercise?.length || recs.sleep?.length || recs.stress?.length);
 
   return (
     <section className="space-y-6">
-      {/* Lab Results Interpretation */}
-      {insights.interpretation && (
-        <Card className="mb-6">
+      {/* Overall summary */}
+      {insights.summary && (
+        <Card>
           <CardContent className="space-y-2 pt-6">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
               <HeartPulse className="w-6 h-6 text-green-600" />
-              All Insights
+              Overall Summary
             </h2>
-            <div className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
-              {insights.interpretation}
-            </div>
+            <p className="text-gray-700 text-base leading-relaxed">{insights.summary}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Lifestyle Recommendations */}
-      {insights.lifestyle_recommendations && (
+      {/* Lifestyle recommendations */}
+      {hasRecs && (
         <Card>
           <CardContent className="space-y-4 pt-6">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-4">
               <BadgeCheck className="w-6 h-6 text-green-600" />
               Lifestyle Recommendations
             </h2>
-
-            {insights.lifestyle_recommendations.diet?.length > 0 && (
+            {recs.diet?.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-800">🍽️ Diet</h3>
-                {renderList(insights.lifestyle_recommendations.diet)}
+                <h3 className="font-medium text-gray-800 mb-1">Diet</h3>
+                {renderList(recs.diet)}
               </div>
             )}
-
-            {insights.lifestyle_recommendations.exercise?.length > 0 && (
+            {recs.exercise?.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-800">🏋️ Exercise</h3>
-                {renderList(insights.lifestyle_recommendations.exercise)}
+                <h3 className="font-medium text-gray-800 mb-1">Exercise</h3>
+                {renderList(recs.exercise)}
               </div>
             )}
-
-            {insights.lifestyle_recommendations.sleep?.length > 0 && (
+            {recs.sleep?.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-800">😴 Sleep</h3>
-                {renderList(insights.lifestyle_recommendations.sleep)}
+                <h3 className="font-medium text-gray-800 mb-1">Sleep</h3>
+                {renderList(recs.sleep)}
               </div>
             )}
-
-            {insights.lifestyle_recommendations.stress?.length > 0 && (
+            {recs.stress?.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-800">🧘 Stress Management</h3>
-                {renderList(insights.lifestyle_recommendations.stress)}
+                <h3 className="font-medium text-gray-800 mb-1">Stress Management</h3>
+                {renderList(recs.stress)}
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Urgent Flags */}
+      {/* Urgent flags */}
       {insights.urgent_flags?.length > 0 && (
         <Card>
           <CardContent className="pt-6">
-            <h2 className="text-xl font-semibold text-red-600 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-red-600 flex items-center gap-2 mb-3">
               <AlertCircle className="w-5 h-5" />
               Urgent Flags
             </h2>
@@ -102,7 +90,7 @@ export const AIInsights: React.FC<Props> = ({ insights }) => {
 
       {/* Disclaimer */}
       {insights.disclaimer && (
-        <div className="bg-orange-50 border-l-4 border-orange-500 text-orange-800 text-sm p-4 rounded-md shadow-sm">
+        <div className="bg-orange-50 border-l-4 border-orange-500 text-orange-800 text-sm p-4 rounded-md">
           {insights.disclaimer}
         </div>
       )}

@@ -1,7 +1,6 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,124 +21,105 @@ serve(async (req) => {
   }
 
   try {
-    const requestBody = await req.json();
-    const { text } = requestBody;
-    
-    console.log('🧾 Received request for OCR text parsing');
+    const { file, media_type } = await req.json();
 
-    // Validate text field exists and is a string
-    if (!text || typeof text !== 'string') {
-      console.warn('⚠️ Missing or invalid `text` field in request body');
-      return new Response(JSON.stringify({ error: 'Missing or invalid `text` field in request body.' }), {
+    if (!file || typeof file !== 'string') {
+      return new Response(JSON.stringify({ error: 'Missing or invalid `file` field (expected base64 string).' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (text.trim().length === 0) {
-      console.warn('⚠️ Empty text provided');
-      return new Response(JSON.stringify({ error: 'Text field cannot be empty.' }), {
+    const supportedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!media_type || !supportedTypes.includes(media_type)) {
+      return new Response(JSON.stringify({ error: `Unsupported media type: ${media_type}` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('📄 Full OCR text length:', text.length);
+    // Build the appropriate Claude content block for PDF or image
+    const fileBlock = media_type === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: file } }
+      : { type: 'image', source: { type: 'base64', media_type, data: file } };
 
-    const prompt = `
-You are a medical data extractor. Given the OCR text from a lab report, extract only valid lab markers into a **pure JSON array**.
+    const prompt = `Extract all lab test results from this document.
 
-✅ Rules:
+Return ONLY a valid JSON array — no markdown, no code fences, no explanation.
+
+Rules:
 - Include only genuine lab test results with numeric values
-- Skip personal info like name, age, gender, date
-- Each marker must include:
-  • "name" (string)
-  • "value" (number)
-  • "unit" (string, optional)
-  • "reference_range" (string, optional, like "80-120")
-  • "status" (low, normal, or high based on value vs. range)
+- Skip patient demographics (name, DOB, address, ordering physician, etc.)
+- Each entry must have:
+  • "name" (string) — the test name
+  • "value" (number) — the numeric result
+  • "unit" (string, optional) — e.g. "mg/dL", "g/L"
+  • "reference_range" (string, optional) — e.g. "3.5–5.2"
+  • "status" ("low", "normal", or "high" based on value vs. reference range)
 
-❌ Do NOT include markdown (no triple backticks)
-❌ Do NOT include explanations or extra text
-
-OCR Text:
-"""${text}"""
-
-Return ONLY this format:
+Example output format:
 [
-  {
-    "name": "Hemoglobin",
-    "value": 132,
-    "unit": "g/L",
-    "reference_range": "130–170",
-    "status": "normal"
-  }
+  { "name": "Hemoglobin", "value": 132, "unit": "g/L", "reference_range": "130–170", "status": "normal" },
+  { "name": "Glucose", "value": 112, "unit": "mg/dL", "reference_range": "70–99", "status": "high" }
 ]
-`;
 
-    console.log('📤 Sending request to OpenAI');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+Return ONLY the JSON array.`;
+
+    console.log(`Calling Claude for lab marker extraction (${media_type})`);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey!,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You extract clean medical lab marker data. Return ONLY valid JSON arrays. No explanations, no markdown, no commentary.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 1500,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        system: 'You extract structured lab marker data from medical documents. Return ONLY valid JSON arrays. No explanations, no markdown, no commentary.',
+        messages: [{
+          role: 'user',
+          content: [fileBlock, { type: 'text', text: prompt }],
+        }],
       }),
     });
 
     if (!response.ok) {
-      console.error('❌ OpenAI API error:', response.status, response.statusText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let aiContent = data.choices?.[0]?.message?.content || '';
-    console.log('📩 AI response received:', aiContent.slice(0, 500));
+    let content: string = data.content?.[0]?.text ?? '';
 
-    // Strip potential markdown
-    aiContent = aiContent.trim();
-    if (aiContent.startsWith("```")) {
-      aiContent = aiContent.replace(/```json|```/g, '').trim();
+    // Strip markdown fences if present
+    content = content.trim();
+    if (content.startsWith('```')) {
+      content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     }
 
     let labMarkers: LabMarker[] = [];
     try {
-      labMarkers = JSON.parse(aiContent);
+      labMarkers = JSON.parse(content);
     } catch (parseError) {
-      console.error('❌ Failed to parse AI response as JSON:', parseError);
-      console.error('Raw AI Content:', aiContent);
-      throw new Error('Invalid JSON response from AI parser');
+      console.error('Failed to parse Claude response as JSON:', parseError);
+      console.error('Raw content:', content.slice(0, 500));
+      throw new Error('Invalid JSON response from Claude');
     }
 
-    const validMarkers = labMarkers.filter(marker =>
-      marker.name &&
-      typeof marker.name === 'string' &&
-      typeof marker.value === 'number' &&
-      !isNaN(marker.value)
+    const validMarkers = labMarkers.filter(
+      m => m.name && typeof m.name === 'string' && typeof m.value === 'number' && !isNaN(m.value)
     );
 
-    console.log(`✅ Parsed ${validMarkers.length} valid lab markers`);
+    console.log(`Extracted ${validMarkers.length} valid lab markers`);
 
     return new Response(JSON.stringify({ labMarkers: validMarkers }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
-    console.error('🚨 Error in parse-lab-markers function:', error);
+    console.error('Error in parse-lab-markers:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

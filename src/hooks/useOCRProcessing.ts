@@ -1,128 +1,108 @@
 import { useState } from 'react';
-import { extractTextFromFile, LabMarker } from '@/utils/ocrUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { UserInfo } from '@/types';
+import { UserInfo, AnalysisResult, LabMarker } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
-interface ParsedInsights {
-  interpretation: string;
-  lifestyle_recommendations: {
-    diet: string[];
-    exercise: string[];
-    sleep: string[];
-    stress: string[];
-  };
-  urgent_flags: string[];
-  disclaimer: string;
-}
+const SUPPORTED_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+];
+
+const readAsBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export const useOCRProcessing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedValues, setExtractedValues] = useState<LabMarker[]>([]);
-  const [insights, setInsights] = useState<string>('');
-  const [parsedInsights, setParsedInsights] = useState<ParsedInsights | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
-  const parseLabMarkersWithAI = async (ocrText: string): Promise<LabMarker[]> => {
-    console.log('Parsing OCR text with AI:', ocrText.substring(0, 200) + '...');
-    
+  const parseLabMarkersWithAI = async (base64: string, mediaType: string): Promise<LabMarker[]> => {
     const { data, error } = await supabase.functions.invoke('parse-lab-markers', {
-      body: { text: ocrText }
+      body: { file: base64, media_type: mediaType },
     });
 
-    if (error) {
-      console.error('AI parsing error:', error);
-      throw new Error(error.message || 'Failed to parse lab markers with AI');
-    }
-
+    if (error) throw new Error(error.message || 'Failed to parse lab markers');
     if (!data?.labMarkers || !Array.isArray(data.labMarkers)) {
-      throw new Error('Invalid response from AI parser');
+      throw new Error('Invalid response from lab marker parser');
     }
 
     return data.labMarkers;
   };
 
+  const analyzeBloodWork = async (
+    labMarkers: LabMarker[],
+    userInfo: UserInfo
+  ): Promise<AnalysisResult> => {
+    const { data, error } = await supabase.functions.invoke('analyze-blood-work', {
+      body: { user_info: userInfo, lab_markers: labMarkers },
+    });
+
+    if (error) throw new Error(error.message || 'Failed to analyze blood work');
+    if (!data?.markers || !Array.isArray(data.markers)) {
+      throw new Error('Invalid response from blood work analyzer');
+    }
+
+    return data as AnalysisResult;
+  };
+
   const processFileAndGenerateInsights = async (file: File, userInfo: UserInfo) => {
     setIsProcessing(true);
-    setInsights('');
-    setParsedInsights(null);
-    
+    setAnalysisResult(null);
+    setExtractedValues([]);
+
     try {
-      // Step 1: Extract raw text from file
-      console.log('Processing file:', file.name);
-      const ocrText = await extractTextFromFile(file);
-      console.log('Extracted OCR text length:', ocrText.length);
-      
-      if (!ocrText || ocrText.trim().length === 0) {
+      if (!SUPPORTED_TYPES.includes(file.type)) {
         toast({
-          title: "No text found",
-          description: "We couldn't extract any text from your file. Please try a clearer image or different file.",
-          variant: "destructive",
+          title: 'Unsupported file type',
+          description: 'Please upload a PDF or an image (JPEG, PNG, WebP).',
+          variant: 'destructive',
         });
         return;
       }
 
-      // Step 2: Parse lab markers using AI
-      console.log('Parsing lab markers with AI...');
-      const aiParsedMarkers = await parseLabMarkersWithAI(ocrText);
-      console.log('AI parsed markers:', aiParsedMarkers);
-      
-      if (aiParsedMarkers.length === 0) {
+      // Step 1: Read file as base64 — no client-side OCR needed
+      console.log('Reading file:', file.name, file.type);
+      const base64 = await readAsBase64(file);
+
+      // Step 2: Send directly to Claude for extraction
+      console.log('Extracting lab markers via Claude...');
+      const parsedMarkers = await parseLabMarkersWithAI(base64, file.type);
+
+      if (parsedMarkers.length === 0) {
         toast({
-          title: "No valid lab markers found",
-          description: "No valid lab markers were identified in your file. Please try a different lab report.",
-          variant: "destructive",
+          title: 'No lab markers found',
+          description: 'No valid lab markers were identified. Please try a different lab report.',
+          variant: 'destructive',
         });
         return;
       }
-      
-      setExtractedValues(aiParsedMarkers);
-      
-      // Step 3: Generate insights using Supabase Edge Function
-      console.log('Generating insights with AI-parsed data:', {
-        user_info: userInfo,
-        lab_values: aiParsedMarkers
+
+      setExtractedValues(parsedMarkers);
+
+      // Step 3: Analyse with Claude — per-marker explanations + overall insights
+      console.log('Analysing blood work with Claude...');
+      const result = await analyzeBloodWork(parsedMarkers, userInfo);
+      setAnalysisResult(result);
+
+      toast({
+        title: 'Analysis complete!',
+        description: `Analysed ${parsedMarkers.length} lab markers with personalised insights.`,
       });
-      
-      const { data, error } = await supabase.functions.invoke('generate-insights', {
-        body: {
-          user_info: userInfo,
-          lab_values: aiParsedMarkers
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to generate insights');
-      }
-
-      console.log('Received insights response:', data);
-
-      if (data?.insights) {
-        // Try to parse as JSON first
-        try {
-          const parsed = typeof data.insights === 'string' ? JSON.parse(data.insights) : data.insights;
-          setParsedInsights(parsed);
-          console.log('Parsed insights:', parsed);
-        } catch (parseError) {
-          // Fallback to string format if JSON parsing fails
-          console.log('Failed to parse as JSON, using string format');
-          setInsights(data.insights);
-        }
-        
-        toast({
-          title: "Analysis complete!",
-          description: `Found ${aiParsedMarkers.length} lab markers and generated personalized insights.`,
-        });
-      } else {
-        throw new Error('No insights received from AI');
-      }
-
     } catch (error) {
       console.error('Processing error:', error);
       toast({
-        title: "Processing failed",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive",
+        title: 'Processing failed',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
       });
     } finally {
       setIsProcessing(false);
@@ -132,8 +112,7 @@ export const useOCRProcessing = () => {
   return {
     isProcessing,
     extractedValues,
-    insights,
-    parsedInsights,
+    analysisResult,
     processFileAndGenerateInsights,
   };
 };

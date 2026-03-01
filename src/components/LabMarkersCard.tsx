@@ -1,160 +1,77 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Activity, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Activity, ChevronDown, MessageCircle } from 'lucide-react';
+import { MarkerAnalysis } from '@/types';
 
 interface LabMarker {
   name: string;
   value: number;
   unit?: string;
-  units?: string; // Backward compatibility
+  units?: string;
   reference_range?: string;
   status?: 'low' | 'normal' | 'high';
 }
 
 interface LabMarkersCardProps {
   extractedValues: LabMarker[];
+  markerAnalyses?: MarkerAnalysis[];
 }
 
-const generateStatus = (name: string, value: number, referenceRange?: string, aiStatus?: 'low' | 'normal' | 'high'): string => {
-  // If AI provided status, use it (capitalize first letter)
-  if (aiStatus) {
-    return aiStatus.charAt(0).toUpperCase() + aiStatus.slice(1);
-  }
+const STATUS_LABEL: Record<string, string> = {
+  high: 'High',
+  low: 'Low',
+  normal: 'Normal',
+};
 
-  const lowerName = name.toLowerCase();
-  
-  if (referenceRange) {
-    // Try to parse reference range like "3.5-5.2" or "3.5 - 5.2" or "130–170"
-    const rangeMatch = referenceRange.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
-    if (rangeMatch) {
-      const [, minStr, maxStr] = rangeMatch;
-      const min = parseFloat(minStr);
-      const max = parseFloat(maxStr);
-      
-      if (value < min) return 'Low';
-      if (value > max) return 'High';
-      return 'Normal';
-    }
-    
-    // Handle "Up to X" or "< X" format
-    const upperMatch = referenceRange.match(/(?:up to|<)\s*(\d+(?:\.\d+)?)/i);
-    if (upperMatch) {
-      const upperLimit = parseFloat(upperMatch[1]);
-      return value > upperLimit ? 'High' : 'Normal';
-    }
-    
-    // Handle "> X" format
-    const lowerMatch = referenceRange.match(/>\s*(\d+(?:\.\d+)?)/);
-    if (lowerMatch) {
-      const lowerLimit = parseFloat(lowerMatch[1]);
-      return value < lowerLimit ? 'Low' : 'Normal';
-    }
+const getStatusFromRange = (value: number, referenceRange?: string): string => {
+  if (!referenceRange) return 'Normal';
+  const rangeMatch = referenceRange.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
+  if (rangeMatch) {
+    const min = parseFloat(rangeMatch[1]);
+    const max = parseFloat(rangeMatch[2]);
+    if (value < min) return 'Low';
+    if (value > max) return 'High';
+    return 'Normal';
   }
-  
-  // Fallback logic for common markers when reference range can't be parsed
-  if (lowerName.includes('cholesterol') && lowerName.includes('total')) {
-    return value > 200 ? 'High' : value < 100 ? 'Low' : 'Normal';
-  }
-  if (lowerName.includes('ldl')) {
-    return value > 130 ? 'High' : value < 70 ? 'Low' : 'Normal';
-  }
-  if (lowerName.includes('hdl')) {
-    return value < 40 ? 'Low' : value > 60 ? 'High' : 'Normal';
-  }
-  if (lowerName.includes('glucose') || lowerName.includes('sugar')) {
-    return value > 100 ? 'High' : value < 70 ? 'Low' : 'Normal';
-  }
-  
+  const upperMatch = referenceRange.match(/(?:up to|<)\s*(\d+(?:\.\d+)?)/i);
+  if (upperMatch) return value > parseFloat(upperMatch[1]) ? 'High' : 'Normal';
+  const lowerMatch = referenceRange.match(/>\s*(\d+(?:\.\d+)?)/);
+  if (lowerMatch) return value < parseFloat(lowerMatch[1]) ? 'Low' : 'Normal';
   return 'Normal';
 };
 
-const generateInterpretation = (name: string, value: number, status: string, units?: string): string => {
-  const lowerName = name.toLowerCase();
-  
-  // Specific interpretations for common markers
-  if (lowerName.includes('cholesterol') && lowerName.includes('total')) {
-    if (status === 'High') return 'Total cholesterol measures all cholesterol in your blood. High levels increase your risk of heart disease and stroke.';
-    if (status === 'Low') return 'Total cholesterol is below normal range. While low cholesterol is generally good, extremely low levels may indicate other health issues.';
-    return 'Total cholesterol measures all cholesterol in your blood. This level supports good cardiovascular health.';
-  }
-  
-  if (lowerName.includes('ldl')) {
-    if (status === 'High') return 'LDL is often called "bad" cholesterol because it can build up in artery walls, increasing heart disease risk.';
-    if (status === 'Low') return 'LDL cholesterol is well-controlled. Low LDL levels reduce your risk of heart disease and stroke.';
-    return 'LDL cholesterol is within target range, supporting good cardiovascular health.';
-  }
-  
-  if (lowerName.includes('hdl')) {
-    if (status === 'High') return 'HDL is "good" cholesterol that helps remove harmful cholesterol from your bloodstream. Higher levels are protective.';
-    if (status === 'Low') return 'HDL helps remove bad cholesterol from your bloodstream. Regular exercise and healthy fats can help increase HDL levels.';
-    return 'HDL cholesterol levels support cardiovascular protection by removing excess cholesterol from your arteries.';
-  }
-  
-  if (lowerName.includes('glucose') || lowerName.includes('sugar')) {
-    if (status === 'High') return 'Blood glucose measures sugar levels in your blood. Elevated levels may indicate prediabetes or diabetes risk.';
-    if (status === 'Low') return 'Blood glucose is below normal range, which may cause symptoms like dizziness or fatigue if severe.';
-    return 'Blood glucose levels are well-controlled, indicating good metabolic function.';
-  }
-  
-  if (lowerName.includes('hemoglobin') || lowerName.includes('hgb')) {
-    if (status === 'High') return 'Hemoglobin carries oxygen in your blood. High levels may indicate dehydration or underlying blood disorders.';
-    if (status === 'Low') return 'Hemoglobin carries oxygen throughout your body. Low levels may indicate anemia or iron deficiency.';
-    return 'Hemoglobin levels support optimal oxygen transport throughout your body.';
-  }
-  
-  if (lowerName.includes('creatinine')) {
-    if (status === 'High') return 'Creatinine measures kidney function. Elevated levels may indicate reduced kidney filtering capacity.';
-    if (status === 'Low') return 'Creatinine is a waste product filtered by your kidneys. Low levels are typically not concerning.';
-    return 'Creatinine levels indicate healthy kidney function and waste filtration.';
-  }
-  
-  // Generic fallbacks for other markers
-  if (status === 'High') {
-    return `${name} levels are elevated, which may require attention from your healthcare provider for proper evaluation.`;
-  }
-  
-  if (status === 'Low') {
-    return `${name} levels are below normal range, which may indicate a deficiency or other health consideration.`;
-  }
-  
-  return `${name} levels are within normal range, supporting overall health.`;
+const resolveStatus = (marker: LabMarker, analysis?: MarkerAnalysis): string => {
+  if (analysis?.status) return STATUS_LABEL[analysis.status] ?? 'Normal';
+  if (marker.status) return STATUS_LABEL[marker.status] ?? 'Normal';
+  return getStatusFromRange(marker.value, marker.reference_range);
 };
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'High':
-      return 'bg-red-50 border-red-200 text-red-800';
-    case 'Low':
-      return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-    case 'Normal':
-      return 'bg-green-50 border-green-200 text-green-800';
-    default:
-      return 'bg-gray-50 border-gray-200 text-gray-800';
-  }
+const statusCardClass = (status: string) => {
+  if (status === 'High') return 'bg-red-50 border-red-200';
+  if (status === 'Low') return 'bg-yellow-50 border-yellow-200';
+  return 'bg-green-50 border-green-200';
 };
 
-const getBadgeColor = (status: string) => {
-  switch (status) {
-    case 'High':
-      return 'bg-red-100 text-red-800 border-red-200';
-    case 'Low':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'Normal':
-      return 'bg-green-100 text-green-800 border-green-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
+const statusBadgeClass = (status: string) => {
+  if (status === 'High') return 'bg-red-100 text-red-800 border-red-200';
+  if (status === 'Low') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  return 'bg-green-100 text-green-800 border-green-200';
 };
 
-export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues }) => {
+export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({
+  extractedValues,
+  markerAnalyses,
+}) => {
   const [isOpen, setIsOpen] = useState(true);
 
-  if (!extractedValues || extractedValues.length === 0) {
-    return null;
-  }
+  if (!extractedValues || extractedValues.length === 0) return null;
+
+  // Build a lookup map: normalised name → MarkerAnalysis
+  const analysisMap = new Map<string, MarkerAnalysis>(
+    (markerAnalyses ?? []).map(a => [a.name.toLowerCase().trim(), a])
+  );
 
   return (
     <Card className="border-blue-200 bg-blue-50/30">
@@ -164,48 +81,72 @@ export const LabMarkersCard: React.FC<LabMarkersCardProps> = ({ extractedValues 
             <CardTitle className="text-2xl font-bold flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Activity className="w-6 h-6 text-blue-600" />
-                🧪 Lab Markers ({extractedValues.length})
+                Lab Markers ({extractedValues.length})
               </div>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              />
             </CardTitle>
           </CardHeader>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent>
           <CardContent className="space-y-4">
             {extractedValues.map((marker, index) => {
-              const status = generateStatus(marker.name, marker.value, marker.reference_range, marker.status);
-              const interpretation = generateInterpretation(marker.name, marker.value, status, marker.unit || marker.units);
-              const cardColor = getStatusColor(status);
-              const badgeColor = getBadgeColor(status);
-              
+              const analysis = analysisMap.get(marker.name.toLowerCase().trim());
+              const status = resolveStatus(marker, analysis);
+              const unit = marker.unit || marker.units || '';
+
               return (
-                <div key={index} className={`p-4 rounded-lg border ${cardColor}`}>
+                <div
+                  key={index}
+                  className={`p-4 rounded-lg border ${statusCardClass(status)}`}
+                >
+                  {/* Header row */}
                   <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-semibold text-gray-900">{marker.name}</h4>
-                    <span className={`px-2 py-1 text-xs rounded font-medium border ${badgeColor}`}>
+                    <h4 className="font-semibold text-gray-900 text-base">{marker.name}</h4>
+                    <span
+                      className={`px-2 py-0.5 text-xs rounded font-medium border ${statusBadgeClass(status)}`}
+                    >
                       {status}
                     </span>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                    <div className="text-sm">
-                      <span className="text-gray-600">Your Value: </span>
+
+                  {/* Value + Reference */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 mb-3 text-sm">
+                    <div>
+                      <span className="text-gray-500">Your value: </span>
                       <span className="font-semibold text-gray-900">
-                        {marker.value} {marker.unit || marker.units || ''}
+                        {marker.value}{unit ? ` ${unit}` : ''}
                       </span>
                     </div>
                     {marker.reference_range && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Reference: </span>
+                      <div>
+                        <span className="text-gray-500">Reference: </span>
                         <span className="font-medium text-gray-700">{marker.reference_range}</span>
                       </div>
                     )}
                   </div>
-                  
-                  <div className="text-sm text-gray-700 mt-2">
-                    {interpretation}
-                  </div>
+
+                  {/* AI explanation */}
+                  {analysis?.explanation && (
+                    <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                      {analysis.explanation}
+                    </p>
+                  )}
+
+                  {/* Conversation starter */}
+                  {analysis?.conversation_starter && (
+                    <div className="flex items-start gap-2 bg-white/70 rounded-md border border-gray-200 px-3 py-2">
+                      <MessageCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="text-xs text-gray-600">
+                        <span className="font-medium text-blue-700 block mb-0.5">
+                          Ask your doctor:
+                        </span>
+                        {analysis.conversation_starter}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
